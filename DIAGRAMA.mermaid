@@ -1,0 +1,105 @@
+flowchart TB
+      subgraph POWER["⚡ ALIMENTAÇÃO"]
+          DC["🔌 Entrada DC<br/>7-24V"]
+          BUCK["LM2596S<br/>Buck Converter<br/>→ 5V"]
+          LDO["SPX3819<br/>Regulador<br/>→ 3.3V"]
+          DC --> BUCK --> LDO
+      end
+
+      subgraph ESP32_SECTION["🔵 ESP32-WROOM-32D (Processador Principal)"]
+          ESP32["ESP32<br/>WiFi + Bluetooth"]
+
+          subgraph ESP_SPI1["SPI Bus #1"]
+              LORA["📡 LoRa RFM95W<br/>433MHz"]
+              SDCARD["💾 SD Card<br/>TF-01A"]
+          end
+
+          subgraph ESP_UART["UART"]
+              GPS["📍 GPS L80-M39"]
+          end
+
+          subgraph ESP_GPIO["GPIO"]
+              DIO0["DIO0<br/>(LoRa IRQ)"]
+              RST_LORA["RST LoRa"]
+              GATE_GPS["Gate GPS<br/>(Liga/Desliga)"]
+          end
+      end
+
+      subgraph ATMEGA_SECTION["🟢 ATmega328P (Processador Auxiliar)"]
+          ATMEGA["ATmega328P<br/>16MHz"]
+
+          subgraph ATM_SPI2["SPI Bus #2"]
+              ETH["🌐 Ethernet W5500"]
+          end
+
+          subgraph ATM_GPIO["GPIO"]
+              BUZZER["🔔 Buzzer"]
+              LED1["💡 LED Debug 01"]
+              BUTTON["🔘 Botão"]
+          end
+      end
+
+      subgraph SHARED["🟡 COMPARTILHADO (I2C Bus)"]
+          DISPLAY["🖥️ Display OLED"]
+          RTC["⏰ RTC DS1307Z<br/>+ Bateria"]
+      end
+
+      subgraph USB_SECTION["🔴 USB (CP2102)"]
+          USB["🔌 USB Connector"]
+          CP2102["CP2102<br/>USB-Serial"]
+      end
+
+      subgraph EXTERNAL["📤 CONEXÕES EXTERNAS"]
+          ANT_LORA["📶 Antena LoRa<br/>U.FL"]
+          RJ45["🔗 RJ-45<br/>Conector Rede"]
+          USB_PC["💻 PC/Computador"]
+      end
+
+      %% Conexões de Alimentação
+      POWER --> ESP32_SECTION
+      POWER --> ATMEGA_SECTION
+      POWER --> SHARED
+
+      %% ESP32 Conexões
+      ESP32 <-->|"MOSI1, MISO1<br/>SCK1, NSS"| LORA
+      ESP32 <-->|"MOSI1, MISO1<br/>SCK1, CS1"| SDCARD
+      ESP32 <-->|"TX-GPS<br/>RX-GPS"| GPS
+      ESP32 --- DIO0
+      ESP32 --- RST_LORA
+      ESP32 --- GATE_GPS
+      LORA --- ANT_LORA
+
+      %% ATmega Conexões
+      ATMEGA <-->|"MOSI2, MISO2<br/>SCK2, CS2"| ETH
+      ATMEGA --> BUZZER
+      ATMEGA --> LED1
+      ATMEGA <--- BUTTON
+      ETH --- RJ45
+
+      %% I2C Compartilhado
+      ESP32 <-->|"I2C<br/>SDA, SCL"| SHARED
+      ATMEGA <-->|"I2C<br/>SDA, SCL"| SHARED
+
+      %% Comunicação entre MCUs
+      ESP32 <-->|"UART via<br/>Shift Level<br/>(SN74HCT08)"| ATMEGA
+
+      %% USB
+      USB --- CP2102
+      CP2102 <-->|"TXD, RXD"| ESP32
+      CP2102 <-->|"TXD2, RXD2<br/>DTR1 (Reset)"| ATMEGA
+      USB --- USB_PC
+
+      %% Estilos
+      classDef esp32Style fill:#2196F3,stroke:#1565C0,color:#fff
+      classDef atmegaStyle fill:#4CAF50,stroke:#2E7D32,color:#fff
+      classDef sharedStyle fill:#FFC107,stroke:#FF8F00,color:#000
+      classDef usbStyle fill:#F44336,stroke:#C62828,color:#fff
+      classDef powerStyle fill:#9C27B0,stroke:#6A1B9A,color:#fff
+      classDef externalStyle fill:#607D8B,stroke:#37474F,color:#fff
+
+      class ESP32,LORA,SDCARD,GPS,DIO0,RST_LORA,GATE_GPS esp32Style
+      class ATMEGA,ETH,BUZZER,LED1,BUTTON atmegaStyle
+      class DISPLAY,RTC sharedStyle
+      class USB,CP2102 usbStyle
+      class DC,BUCK,LDO powerStyle
+      class ANT_LORA,RJ45,USB_PC externalStyle

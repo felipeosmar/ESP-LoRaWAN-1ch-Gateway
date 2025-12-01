@@ -1,0 +1,694 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2200 1800" width="2200" height="1800">
+  <defs>
+    <style>
+      .component { stroke: #333; stroke-width: 2; }
+      .esp32 { fill: #2196F3; }
+      .atmega { fill: #4CAF50; }
+      .lora { fill: #9C27B0; }
+      .ethernet { fill: #FF9800; }
+      .gps { fill: #00BCD4; }
+      .sdcard { fill: #795548; }
+      .rtc { fill: #E91E63; }
+      .display { fill: #607D8B; }
+      .usb { fill: #F44336; }
+      .power { fill: #9E9E9E; }
+      .shiftlevel { fill: #FFC107; }
+      .pin { fill: #FFF; stroke: #333; stroke-width: 1; }
+      .pin-text { font-family: monospace; font-size: 10px; fill: #333; }
+      .component-title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; fill: #FFF; }
+      .component-subtitle { font-family: Arial, sans-serif; font-size: 11px; fill: #FFF; opacity: 0.9; }
+      .wire { stroke-width: 2; fill: none; }
+      .wire-spi1 { stroke: #E91E63; }
+      .wire-spi2 { stroke: #FF9800; }
+      .wire-i2c { stroke: #4CAF50; }
+      .wire-uart { stroke: #2196F3; }
+      .wire-gpio { stroke: #9C27B0; }
+      .wire-power { stroke: #F44336; }
+      .wire-gnd { stroke: #333; }
+      .wire-inter { stroke: #795548; }
+      .legend-text { font-family: Arial, sans-serif; font-size: 11px; fill: #333; }
+      .title { font-family: Arial, sans-serif; font-size: 28px; font-weight: bold; fill: #333; }
+      .subtitle { font-family: Arial, sans-serif; font-size: 16px; fill: #666; }
+      .label-box { fill: #FFF; stroke: #333; stroke-width: 1; }
+      .label-text { font-family: monospace; font-size: 9px; fill: #333; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="2200" height="1800" fill="#FAFAFA"/>
+
+  <!-- Title -->
+  <text x="1100" y="45" text-anchor="middle" class="title">GATEWAY LoRa JVTECH v4.1 - Diagrama de Conexoes</text>
+  <text x="1100" y="70" text-anchor="middle" class="subtitle">Mapeamento de Pinos e Interconexoes entre Componentes</text>
+
+  <!-- ==================== ESP32-WROOM-32D ==================== -->
+  <g transform="translate(100, 120)">
+    <rect x="0" y="0" width="240" height="480" rx="8" class="component esp32"/>
+    <text x="120" y="30" text-anchor="middle" class="component-title">ESP32-WROOM-32D</text>
+    <text x="120" y="50" text-anchor="middle" class="component-subtitle">(Processador Principal)</text>
+
+    <!-- Left side pins -->
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">GND</text><text x="10" y="13" class="pin-text">1</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">3V3</text><text x="10" y="38" class="pin-text">2</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">EN</text><text x="10" y="63" class="pin-text">3</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">VP</text><text x="10" y="88" class="pin-text">4</text>
+      <rect x="-45" y="100" width="50" height="18" class="pin"/><text x="-20" y="113" text-anchor="middle" class="pin-text">VN</text><text x="10" y="113" class="pin-text">5</text>
+      <rect x="-45" y="125" width="50" height="18" class="pin"/><text x="-20" y="138" text-anchor="middle" class="pin-text">IO34</text><text x="10" y="138" class="pin-text">6</text>
+      <rect x="-45" y="150" width="50" height="18" class="pin"/><text x="-20" y="163" text-anchor="middle" class="pin-text">IO35</text><text x="10" y="163" class="pin-text">7</text>
+      <rect x="-45" y="175" width="50" height="18" class="pin"/><text x="-20" y="188" text-anchor="middle" class="pin-text">IO32</text><text x="10" y="188" class="pin-text">8</text>
+      <rect x="-45" y="200" width="50" height="18" class="pin"/><text x="-20" y="213" text-anchor="middle" class="pin-text">IO33</text><text x="10" y="213" class="pin-text">9</text>
+      <rect x="-45" y="225" width="50" height="18" class="pin"/><text x="-20" y="238" text-anchor="middle" class="pin-text">IO25</text><text x="10" y="238" class="pin-text">10</text>
+      <rect x="-45" y="250" width="50" height="18" class="pin"/><text x="-20" y="263" text-anchor="middle" class="pin-text">IO26</text><text x="10" y="263" class="pin-text">11</text>
+      <rect x="-45" y="275" width="50" height="18" class="pin"/><text x="-20" y="288" text-anchor="middle" class="pin-text">IO27</text><text x="10" y="288" class="pin-text">12</text>
+      <rect x="-45" y="300" width="50" height="18" class="pin"/><text x="-20" y="313" text-anchor="middle" class="pin-text">IO14</text><text x="10" y="313" class="pin-text">13</text>
+      <rect x="-45" y="325" width="50" height="18" class="pin"/><text x="-20" y="338" text-anchor="middle" class="pin-text">IO12</text><text x="10" y="338" class="pin-text">14</text>
+      <rect x="-45" y="350" width="50" height="18" class="pin"/><text x="-20" y="363" text-anchor="middle" class="pin-text">GND</text><text x="10" y="363" class="pin-text">15</text>
+      <rect x="-45" y="375" width="50" height="18" class="pin"/><text x="-20" y="388" text-anchor="middle" class="pin-text">IO13</text><text x="10" y="388" class="pin-text">16</text>
+    </g>
+
+    <!-- Right side pins -->
+    <g transform="translate(240, 70)">
+      <rect x="-5" y="0" width="50" height="18" class="pin"/><text x="20" y="13" text-anchor="middle" class="pin-text">GND</text><text x="-2" y="13" class="pin-text" text-anchor="end">39</text>
+      <rect x="-5" y="25" width="50" height="18" class="pin"/><text x="20" y="38" text-anchor="middle" class="pin-text">GND</text><text x="-2" y="38" class="pin-text" text-anchor="end">38</text>
+      <rect x="-5" y="50" width="50" height="18" class="pin"/><text x="20" y="63" text-anchor="middle" class="pin-text">IO23</text><text x="-2" y="63" class="pin-text" text-anchor="end">37</text>
+      <rect x="-5" y="75" width="50" height="18" class="pin"/><text x="20" y="88" text-anchor="middle" class="pin-text">IO22</text><text x="-2" y="88" class="pin-text" text-anchor="end">36</text>
+      <rect x="-5" y="100" width="50" height="18" class="pin"/><text x="20" y="113" text-anchor="middle" class="pin-text">TXD0</text><text x="-2" y="113" class="pin-text" text-anchor="end">35</text>
+      <rect x="-5" y="125" width="50" height="18" class="pin"/><text x="20" y="138" text-anchor="middle" class="pin-text">RXD0</text><text x="-2" y="138" class="pin-text" text-anchor="end">34</text>
+      <rect x="-5" y="150" width="50" height="18" class="pin"/><text x="20" y="163" text-anchor="middle" class="pin-text">IO21</text><text x="-2" y="163" class="pin-text" text-anchor="end">33</text>
+      <rect x="-5" y="200" width="50" height="18" class="pin"/><text x="20" y="213" text-anchor="middle" class="pin-text">IO19</text><text x="-2" y="213" class="pin-text" text-anchor="end">31</text>
+      <rect x="-5" y="225" width="50" height="18" class="pin"/><text x="20" y="238" text-anchor="middle" class="pin-text">IO18</text><text x="-2" y="238" class="pin-text" text-anchor="end">30</text>
+      <rect x="-5" y="250" width="50" height="18" class="pin"/><text x="20" y="263" text-anchor="middle" class="pin-text">IO5</text><text x="-2" y="263" class="pin-text" text-anchor="end">29</text>
+      <rect x="-5" y="275" width="50" height="18" class="pin"/><text x="20" y="288" text-anchor="middle" class="pin-text">IO17</text><text x="-2" y="288" class="pin-text" text-anchor="end">28</text>
+      <rect x="-5" y="300" width="50" height="18" class="pin"/><text x="20" y="313" text-anchor="middle" class="pin-text">IO16</text><text x="-2" y="313" class="pin-text" text-anchor="end">27</text>
+      <rect x="-5" y="325" width="50" height="18" class="pin"/><text x="20" y="338" text-anchor="middle" class="pin-text">IO4</text><text x="-2" y="338" class="pin-text" text-anchor="end">26</text>
+      <rect x="-5" y="350" width="50" height="18" class="pin"/><text x="20" y="363" text-anchor="middle" class="pin-text">IO0</text><text x="-2" y="363" class="pin-text" text-anchor="end">25</text>
+      <rect x="-5" y="375" width="50" height="18" class="pin"/><text x="20" y="388" text-anchor="middle" class="pin-text">IO2</text><text x="-2" y="388" class="pin-text" text-anchor="end">24</text>
+    </g>
+  </g>
+
+  <!-- ==================== LoRa RFM95W ==================== -->
+  <g transform="translate(550, 120)">
+    <rect x="0" y="0" width="200" height="280" rx="8" class="component lora"/>
+    <text x="100" y="30" text-anchor="middle" class="component-title">RFM95W</text>
+    <text x="100" y="50" text-anchor="middle" class="component-subtitle">LoRa 433MHz</text>
+
+    <!-- Left pins -->
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">GND</text><text x="10" y="13" class="pin-text">1</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">MISO</text><text x="10" y="38" class="pin-text">2</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">MOSI</text><text x="10" y="63" class="pin-text">3</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">SCK</text><text x="10" y="88" class="pin-text">4</text>
+      <rect x="-45" y="100" width="50" height="18" class="pin"/><text x="-20" y="113" text-anchor="middle" class="pin-text">NSS</text><text x="10" y="113" class="pin-text">5</text>
+      <rect x="-45" y="125" width="50" height="18" class="pin"/><text x="-20" y="138" text-anchor="middle" class="pin-text">RST</text><text x="10" y="138" class="pin-text">6</text>
+      <rect x="-45" y="150" width="50" height="18" class="pin"/><text x="-20" y="163" text-anchor="middle" class="pin-text">DIO5</text><text x="10" y="163" class="pin-text">7</text>
+      <rect x="-45" y="175" width="50" height="18" class="pin"/><text x="-20" y="188" text-anchor="middle" class="pin-text">GND</text><text x="10" y="188" class="pin-text">8</text>
+    </g>
+
+    <!-- Right pins -->
+    <g transform="translate(200, 70)">
+      <rect x="-5" y="0" width="50" height="18" class="pin"/><text x="20" y="13" text-anchor="middle" class="pin-text">DIO2</text><text x="-2" y="13" class="pin-text" text-anchor="end">16</text>
+      <rect x="-5" y="25" width="50" height="18" class="pin"/><text x="20" y="38" text-anchor="middle" class="pin-text">DIO1</text><text x="-2" y="38" class="pin-text" text-anchor="end">15</text>
+      <rect x="-5" y="50" width="50" height="18" class="pin"/><text x="20" y="63" text-anchor="middle" class="pin-text">DIO0</text><text x="-2" y="63" class="pin-text" text-anchor="end">14</text>
+      <rect x="-5" y="75" width="50" height="18" class="pin"/><text x="20" y="88" text-anchor="middle" class="pin-text">3V3</text><text x="-2" y="88" class="pin-text" text-anchor="end">13</text>
+      <rect x="-5" y="100" width="50" height="18" class="pin"/><text x="20" y="113" text-anchor="middle" class="pin-text">DIO4</text><text x="-2" y="113" class="pin-text" text-anchor="end">12</text>
+      <rect x="-5" y="125" width="50" height="18" class="pin"/><text x="20" y="138" text-anchor="middle" class="pin-text">DIO3</text><text x="-2" y="138" class="pin-text" text-anchor="end">11</text>
+      <rect x="-5" y="150" width="50" height="18" class="pin"/><text x="20" y="163" text-anchor="middle" class="pin-text">GND</text><text x="-2" y="163" class="pin-text" text-anchor="end">10</text>
+      <rect x="-5" y="175" width="50" height="18" class="pin"/><text x="20" y="188" text-anchor="middle" class="pin-text">ANT</text><text x="-2" y="188" class="pin-text" text-anchor="end">9</text>
+    </g>
+  </g>
+
+  <!-- Antenna U.FL -->
+  <g transform="translate(850, 250)">
+    <rect x="0" y="0" width="100" height="60" rx="5" fill="#666" stroke="#333" stroke-width="2"/>
+    <text x="50" y="25" text-anchor="middle" class="component-title">Antena</text>
+    <text x="50" y="45" text-anchor="middle" class="component-subtitle">U.FL LoRa</text>
+  </g>
+
+  <!-- ==================== SD Card ==================== -->
+  <g transform="translate(550, 480)">
+    <rect x="0" y="0" width="200" height="200" rx="8" class="component sdcard"/>
+    <text x="100" y="30" text-anchor="middle" class="component-title">SD Card</text>
+    <text x="100" y="50" text-anchor="middle" class="component-subtitle">TF-01A</text>
+
+    <!-- Pins -->
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">CS</text><text x="10" y="13" class="pin-text">2</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">MOSI</text><text x="10" y="38" class="pin-text">3</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">VCC</text><text x="10" y="63" class="pin-text">4</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">CLK</text><text x="10" y="88" class="pin-text">5</text>
+      <rect x="-45" y="100" width="50" height="18" class="pin"/><text x="-20" y="113" text-anchor="middle" class="pin-text">GND</text><text x="10" y="113" class="pin-text">6</text>
+    </g>
+    <g transform="translate(200, 70)">
+      <rect x="-5" y="0" width="50" height="18" class="pin"/><text x="20" y="13" text-anchor="middle" class="pin-text">MISO</text><text x="-2" y="13" class="pin-text" text-anchor="end">7</text>
+    </g>
+  </g>
+
+  <!-- ==================== GPS L80-M39 ==================== -->
+  <g transform="translate(100, 720)">
+    <rect x="0" y="0" width="240" height="200" rx="8" class="component gps"/>
+    <text x="120" y="30" text-anchor="middle" class="component-title">GPS L80-M39</text>
+    <text x="120" y="50" text-anchor="middle" class="component-subtitle">GNSS Module</text>
+
+    <!-- Pins -->
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">RXD</text><text x="10" y="13" class="pin-text">1</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">TXD</text><text x="10" y="38" class="pin-text">2</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">GND</text><text x="10" y="63" class="pin-text">3</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">VCC</text><text x="10" y="88" class="pin-text">4</text>
+      <rect x="-45" y="100" width="50" height="18" class="pin"/><text x="-20" y="113" text-anchor="middle" class="pin-text">VBKP</text><text x="10" y="113" class="pin-text">5</text>
+    </g>
+    <g transform="translate(240, 70)">
+      <rect x="-5" y="50" width="50" height="18" class="pin"/><text x="20" y="63" text-anchor="middle" class="pin-text">RST</text><text x="-2" y="63" class="pin-text" text-anchor="end">10</text>
+      <rect x="-5" y="75" width="50" height="18" class="pin"/><text x="20" y="88" text-anchor="middle" class="pin-text">GND</text><text x="-2" y="88" class="pin-text" text-anchor="end">12</text>
+    </g>
+  </g>
+
+  <!-- ==================== ATmega328P ==================== -->
+  <g transform="translate(1200, 120)">
+    <rect x="0" y="0" width="240" height="480" rx="8" class="component atmega"/>
+    <text x="120" y="30" text-anchor="middle" class="component-title">ATmega328P-AU</text>
+    <text x="120" y="50" text-anchor="middle" class="component-subtitle">(Processador Auxiliar)</text>
+
+    <!-- Left side pins -->
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">PD3</text><text x="10" y="13" class="pin-text">1</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">PD4</text><text x="10" y="38" class="pin-text">2</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">GND</text><text x="10" y="63" class="pin-text">3</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">VCC</text><text x="10" y="88" class="pin-text">4</text>
+      <rect x="-45" y="100" width="50" height="18" class="pin"/><text x="-20" y="113" text-anchor="middle" class="pin-text">GND</text><text x="10" y="113" class="pin-text">5</text>
+      <rect x="-45" y="125" width="50" height="18" class="pin"/><text x="-20" y="138" text-anchor="middle" class="pin-text">VCC</text><text x="10" y="138" class="pin-text">6</text>
+      <rect x="-45" y="150" width="50" height="18" class="pin"/><text x="-20" y="163" text-anchor="middle" class="pin-text">PB6</text><text x="10" y="163" class="pin-text">7</text>
+      <rect x="-45" y="175" width="50" height="18" class="pin"/><text x="-20" y="188" text-anchor="middle" class="pin-text">PB7</text><text x="10" y="188" class="pin-text">8</text>
+      <rect x="-45" y="225" width="50" height="18" class="pin"/><text x="-20" y="238" text-anchor="middle" class="pin-text">PB0</text><text x="10" y="238" class="pin-text">12</text>
+      <rect x="-45" y="250" width="50" height="18" class="pin"/><text x="-20" y="263" text-anchor="middle" class="pin-text">PB1</text><text x="10" y="263" class="pin-text">13</text>
+      <rect x="-45" y="275" width="50" height="18" class="pin"/><text x="-20" y="288" text-anchor="middle" class="pin-text">PB2</text><text x="10" y="288" class="pin-text">14</text>
+      <rect x="-45" y="300" width="50" height="18" class="pin"/><text x="-20" y="313" text-anchor="middle" class="pin-text">PB3</text><text x="10" y="313" class="pin-text">15</text>
+      <rect x="-45" y="325" width="50" height="18" class="pin"/><text x="-20" y="338" text-anchor="middle" class="pin-text">PB4</text><text x="10" y="338" class="pin-text">16</text>
+      <rect x="-45" y="350" width="50" height="18" class="pin"/><text x="-20" y="363" text-anchor="middle" class="pin-text">PB5</text><text x="10" y="363" class="pin-text">17</text>
+      <rect x="-45" y="375" width="50" height="18" class="pin"/><text x="-20" y="388" text-anchor="middle" class="pin-text">AVCC</text><text x="10" y="388" class="pin-text">18</text>
+    </g>
+
+    <!-- Right side pins -->
+    <g transform="translate(240, 70)">
+      <rect x="-5" y="0" width="50" height="18" class="pin"/><text x="20" y="13" text-anchor="middle" class="pin-text">PD2</text><text x="-2" y="13" class="pin-text" text-anchor="end">32</text>
+      <rect x="-5" y="25" width="50" height="18" class="pin"/><text x="20" y="38" text-anchor="middle" class="pin-text">PD1</text><text x="-2" y="38" class="pin-text" text-anchor="end">31</text>
+      <rect x="-5" y="50" width="50" height="18" class="pin"/><text x="20" y="63" text-anchor="middle" class="pin-text">PD0</text><text x="-2" y="63" class="pin-text" text-anchor="end">30</text>
+      <rect x="-5" y="75" width="50" height="18" class="pin"/><text x="20" y="88" text-anchor="middle" class="pin-text">PC6</text><text x="-2" y="88" class="pin-text" text-anchor="end">29</text>
+      <rect x="-5" y="100" width="50" height="18" class="pin"/><text x="20" y="113" text-anchor="middle" class="pin-text">PC5</text><text x="-2" y="113" class="pin-text" text-anchor="end">28</text>
+      <rect x="-5" y="125" width="50" height="18" class="pin"/><text x="20" y="138" text-anchor="middle" class="pin-text">PC4</text><text x="-2" y="138" class="pin-text" text-anchor="end">27</text>
+      <rect x="-5" y="175" width="50" height="18" class="pin"/><text x="20" y="188" text-anchor="middle" class="pin-text">GND</text><text x="-2" y="188" class="pin-text" text-anchor="end">21</text>
+    </g>
+  </g>
+
+  <!-- ==================== Ethernet W5500 ==================== -->
+  <g transform="translate(1650, 120)">
+    <rect x="0" y="0" width="220" height="320" rx="8" class="component ethernet"/>
+    <text x="110" y="30" text-anchor="middle" class="component-title">W5500</text>
+    <text x="110" y="50" text-anchor="middle" class="component-subtitle">Ethernet Controller</text>
+
+    <!-- Left pins (SPI) -->
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">SCSn</text><text x="10" y="13" class="pin-text">32</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">SCLK</text><text x="10" y="38" class="pin-text">33</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">MISO</text><text x="10" y="63" class="pin-text">34</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">MOSI</text><text x="10" y="88" class="pin-text">35</text>
+      <rect x="-45" y="100" width="50" height="18" class="pin"/><text x="-20" y="113" text-anchor="middle" class="pin-text">INTn</text><text x="10" y="113" class="pin-text">36</text>
+      <rect x="-45" y="125" width="50" height="18" class="pin"/><text x="-20" y="138" text-anchor="middle" class="pin-text">RSTn</text><text x="10" y="138" class="pin-text">37</text>
+      <rect x="-45" y="175" width="50" height="18" class="pin"/><text x="-20" y="188" text-anchor="middle" class="pin-text">VDD</text><text x="10" y="188" class="pin-text">28</text>
+      <rect x="-45" y="200" width="50" height="18" class="pin"/><text x="-20" y="213" text-anchor="middle" class="pin-text">GND</text><text x="10" y="213" class="pin-text">29</text>
+    </g>
+
+    <!-- Right pins (PHY) -->
+    <g transform="translate(220, 70)">
+      <rect x="-5" y="0" width="50" height="18" class="pin"/><text x="20" y="13" text-anchor="middle" class="pin-text">TXN</text><text x="-2" y="13" class="pin-text" text-anchor="end">1</text>
+      <rect x="-5" y="25" width="50" height="18" class="pin"/><text x="20" y="38" text-anchor="middle" class="pin-text">TXP</text><text x="-2" y="38" class="pin-text" text-anchor="end">2</text>
+      <rect x="-5" y="50" width="50" height="18" class="pin"/><text x="20" y="63" text-anchor="middle" class="pin-text">RXN</text><text x="-2" y="63" class="pin-text" text-anchor="end">5</text>
+      <rect x="-5" y="75" width="50" height="18" class="pin"/><text x="20" y="88" text-anchor="middle" class="pin-text">RXP</text><text x="-2" y="88" class="pin-text" text-anchor="end">6</text>
+    </g>
+  </g>
+
+  <!-- RJ45 Connector -->
+  <g transform="translate(1950, 150)">
+    <rect x="0" y="0" width="120" height="100" fill="#555" stroke="#333" stroke-width="2" rx="5"/>
+    <text x="60" y="35" text-anchor="middle" class="component-title">RJ-45</text>
+    <text x="60" y="55" text-anchor="middle" class="component-subtitle">HR911105A</text>
+    <text x="60" y="80" text-anchor="middle" class="component-subtitle">(Rede)</text>
+  </g>
+
+  <!-- ==================== USB CP2102 ==================== -->
+  <g transform="translate(550, 780)">
+    <rect x="0" y="0" width="200" height="220" rx="8" class="component usb"/>
+    <text x="100" y="30" text-anchor="middle" class="component-title">CP2102</text>
+    <text x="100" y="50" text-anchor="middle" class="component-subtitle">USB-Serial</text>
+
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">D+</text><text x="10" y="13" class="pin-text">4</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">D-</text><text x="10" y="38" class="pin-text">5</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">GND</text><text x="10" y="63" class="pin-text">3</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">VDD</text><text x="10" y="88" class="pin-text">6</text>
+      <rect x="-45" y="100" width="50" height="18" class="pin"/><text x="-20" y="113" text-anchor="middle" class="pin-text">VBUS</text><text x="10" y="113" class="pin-text">8</text>
+    </g>
+    <g transform="translate(200, 70)">
+      <rect x="-5" y="0" width="50" height="18" class="pin"/><text x="20" y="13" text-anchor="middle" class="pin-text">TXD</text><text x="-2" y="13" class="pin-text" text-anchor="end">26</text>
+      <rect x="-5" y="25" width="50" height="18" class="pin"/><text x="20" y="38" text-anchor="middle" class="pin-text">RXD</text><text x="-2" y="38" class="pin-text" text-anchor="end">25</text>
+      <rect x="-5" y="50" width="50" height="18" class="pin"/><text x="20" y="63" text-anchor="middle" class="pin-text">DTR</text><text x="-2" y="63" class="pin-text" text-anchor="end">28</text>
+      <rect x="-5" y="75" width="50" height="18" class="pin"/><text x="20" y="88" text-anchor="middle" class="pin-text">RTS</text><text x="-2" y="88" class="pin-text" text-anchor="end">24</text>
+    </g>
+  </g>
+
+  <!-- USB Connector -->
+  <g transform="translate(400, 850)">
+    <rect x="0" y="0" width="80" height="60" fill="#333" stroke="#222" stroke-width="2" rx="5"/>
+    <text x="40" y="25" text-anchor="middle" fill="#FFF" style="font-size: 11px; font-weight: bold;">USB</text>
+    <text x="40" y="45" text-anchor="middle" fill="#FFF" style="font-size: 9px;">Connector</text>
+  </g>
+
+  <!-- ==================== Display OLED ==================== -->
+  <g transform="translate(900, 720)">
+    <rect x="0" y="0" width="180" height="160" rx="8" class="component display"/>
+    <text x="90" y="30" text-anchor="middle" class="component-title">Display OLED</text>
+    <text x="90" y="50" text-anchor="middle" class="component-subtitle">I2C - 0.96"</text>
+
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">GND</text><text x="10" y="13" class="pin-text">1</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">VCC</text><text x="10" y="38" class="pin-text">2</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">SCL</text><text x="10" y="63" class="pin-text">3</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">SDA</text><text x="10" y="88" class="pin-text">4</text>
+    </g>
+  </g>
+
+  <!-- ==================== RTC DS1307 ==================== -->
+  <g transform="translate(1150, 720)">
+    <rect x="0" y="0" width="180" height="160" rx="8" class="component rtc"/>
+    <text x="90" y="30" text-anchor="middle" class="component-title">DS1307Z</text>
+    <text x="90" y="50" text-anchor="middle" class="component-subtitle">RTC + Bateria</text>
+
+    <g transform="translate(0, 70)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">GND</text><text x="10" y="13" class="pin-text">4</text>
+      <rect x="-45" y="25" width="50" height="18" class="pin"/><text x="-20" y="38" text-anchor="middle" class="pin-text">SDA</text><text x="10" y="38" class="pin-text">5</text>
+      <rect x="-45" y="50" width="50" height="18" class="pin"/><text x="-20" y="63" text-anchor="middle" class="pin-text">SCL</text><text x="10" y="63" class="pin-text">6</text>
+      <rect x="-45" y="75" width="50" height="18" class="pin"/><text x="-20" y="88" text-anchor="middle" class="pin-text">VCC</text><text x="10" y="88" class="pin-text">8</text>
+    </g>
+  </g>
+
+  <!-- ==================== Shift Level ==================== -->
+  <g transform="translate(850, 480)">
+    <rect x="0" y="0" width="200" height="120" rx="8" class="component shiftlevel"/>
+    <text x="100" y="30" text-anchor="middle" style="font-size: 13px; font-weight: bold; fill: #333;">SN74HCT08</text>
+    <text x="100" y="50" text-anchor="middle" style="font-size: 11px; fill: #333;">Shift Level</text>
+    <text x="100" y="70" text-anchor="middle" style="font-size: 10px; fill: #333;">3.3V ↔ 5V</text>
+
+    <g transform="translate(0, 85)">
+      <rect x="-45" y="0" width="50" height="18" class="pin"/><text x="-20" y="13" text-anchor="middle" class="pin-text">IN1</text>
+      <rect x="195" y="0" width="50" height="18" class="pin"/><text x="220" y="13" text-anchor="middle" class="pin-text">OUT1</text>
+    </g>
+  </g>
+
+  <!-- ==================== CONEXOES SPI1 (ESP32 -> LoRa) ==================== -->
+  <g class="wire wire-spi1">
+    <!-- MISO: IO19 (pin 31) -> LoRa pin 2 -->
+    <path d="M 385 330 L 420 330 L 420 203 L 505 203"/>
+    <rect x="410" y="185" width="50" height="16" class="label-box" fill="#FCE4EC"/>
+    <text x="435" y="196" text-anchor="middle" class="label-text" fill="#E91E63">MISO</text>
+
+    <!-- MOSI: IO23 (pin 37) -> LoRa pin 3 -->
+    <path d="M 385 180 L 430 180 L 430 228 L 505 228"/>
+    <rect x="410" y="210" width="50" height="16" class="label-box" fill="#FCE4EC"/>
+    <text x="435" y="221" text-anchor="middle" class="label-text" fill="#E91E63">MOSI</text>
+
+    <!-- SCK: IO18 (pin 30) -> LoRa pin 4 -->
+    <path d="M 385 355 L 440 355 L 440 253 L 505 253"/>
+    <rect x="410" y="235" width="50" height="16" class="label-box" fill="#FCE4EC"/>
+    <text x="435" y="246" text-anchor="middle" class="label-text" fill="#E91E63">SCK</text>
+
+    <!-- NSS: IO5 (pin 29) -> LoRa pin 5 -->
+    <path d="M 385 380 L 450 380 L 450 278 L 505 278"/>
+    <rect x="410" y="260" width="50" height="16" class="label-box" fill="#FCE4EC"/>
+    <text x="435" y="271" text-anchor="middle" class="label-text" fill="#E91E63">NSS/CS</text>
+
+    <!-- RST: IO16 (pin 27) -> LoRa pin 6 -->
+    <path d="M 385 430 L 460 430 L 460 303 L 505 303"/>
+    <rect x="410" y="285" width="50" height="16" class="label-box" fill="#FCE4EC"/>
+    <text x="435" y="296" text-anchor="middle" class="label-text" fill="#E91E63">RST</text>
+
+    <!-- DIO0: LoRa pin 14 -> IO4 (pin 26) -->
+    <path d="M 750 233 L 820 233 L 820 100 L 400 100 L 400 455 L 385 455"/>
+    <rect x="770" y="85" width="50" height="16" class="label-box" fill="#FCE4EC"/>
+    <text x="795" y="96" text-anchor="middle" class="label-text" fill="#E91E63">DIO0</text>
+  </g>
+
+  <!-- ==================== CONEXOES SPI1 (ESP32 -> SD Card) ==================== -->
+  <g class="wire wire-spi1">
+    <!-- CS: IO17 (pin 28) -> SD pin 2 -->
+    <path d="M 385 405 L 470 405 L 470 550 L 505 550"/>
+    <rect x="410" y="535" width="55" height="16" class="label-box" fill="#FCE4EC"/>
+    <text x="437" y="546" text-anchor="middle" class="label-text" fill="#E91E63">CS (SD)</text>
+
+    <!-- MOSI -> SD pin 3 (shared) -->
+    <path d="M 430 228 L 430 575 L 505 575"/>
+
+    <!-- CLK -> SD pin 5 (shared) -->
+    <path d="M 440 355 L 440 625 L 505 625"/>
+
+    <!-- MISO <- SD pin 7 (shared) -->
+    <path d="M 750 550 L 780 550 L 780 330 L 420 330"/>
+  </g>
+
+  <!-- Antenna connection -->
+  <path d="M 750 363 L 800 363 L 800 280 L 850 280" class="wire" stroke="#666" stroke-width="2"/>
+  <text x="810" y="320" class="label-text">ANT</text>
+
+  <!-- ==================== CONEXOES SPI2 (ATmega -> Ethernet) ==================== -->
+  <g class="wire wire-spi2">
+    <!-- CS: PB2 (pin 14) -> W5500 pin 32 -->
+    <path d="M 1155 403 L 1100 403 L 1100 80 L 1560 80 L 1560 190 L 1605 190"/>
+    <rect x="1530" y="175" width="50" height="16" class="label-box" fill="#FFF3E0"/>
+    <text x="1555" y="186" text-anchor="middle" class="label-text" fill="#FF9800">CS2</text>
+
+    <!-- MOSI: PB3 (pin 15) -> W5500 pin 35 -->
+    <path d="M 1155 428 L 1090 428 L 1090 70 L 1570 70 L 1570 265 L 1605 265"/>
+    <rect x="1530" y="250" width="50" height="16" class="label-box" fill="#FFF3E0"/>
+    <text x="1555" y="261" text-anchor="middle" class="label-text" fill="#FF9800">MOSI2</text>
+
+    <!-- MISO: PB4 (pin 16) -> W5500 pin 34 -->
+    <path d="M 1155 453 L 1080 453 L 1080 60 L 1580 60 L 1580 240 L 1605 240"/>
+    <rect x="1530" y="225" width="50" height="16" class="label-box" fill="#FFF3E0"/>
+    <text x="1555" y="236" text-anchor="middle" class="label-text" fill="#FF9800">MISO2</text>
+
+    <!-- SCK: PB5 (pin 17) -> W5500 pin 33 -->
+    <path d="M 1155 478 L 1070 478 L 1070 50 L 1590 50 L 1590 215 L 1605 215"/>
+    <rect x="1530" y="200" width="50" height="16" class="label-box" fill="#FFF3E0"/>
+    <text x="1555" y="211" text-anchor="middle" class="label-text" fill="#FF9800">SCK2</text>
+  </g>
+
+  <!-- W5500 to RJ45 -->
+  <path d="M 1870 190 L 1950 190" class="wire" stroke="#FF9800" stroke-width="2"/>
+  <path d="M 1870 215 L 1920 215 L 1920 200 L 1950 200" class="wire" stroke="#FF9800" stroke-width="2"/>
+  <text x="1900" y="175" class="label-text" fill="#FF9800">TX/RX</text>
+
+  <!-- ==================== CONEXOES I2C ==================== -->
+  <g class="wire wire-i2c">
+    <!-- ESP32 SCL (IO22, pin 36) to I2C bus -->
+    <path d="M 385 205 L 450 205 L 450 680 L 700 680"/>
+
+    <!-- ESP32 SDA (IO21, pin 33) to I2C bus -->
+    <path d="M 385 280 L 460 280 L 460 700 L 700 700"/>
+
+    <!-- I2C Bus horizontal -->
+    <path d="M 700 680 L 1100 680" stroke-width="3"/>
+    <path d="M 700 700 L 1100 700" stroke-width="3"/>
+
+    <!-- To Display SCL -->
+    <path d="M 800 680 L 800 840 L 855 840"/>
+    <!-- To Display SDA -->
+    <path d="M 820 700 L 820 865 L 855 865"/>
+
+    <!-- To RTC SCL -->
+    <path d="M 1000 680 L 1000 840 L 1105 840"/>
+    <!-- To RTC SDA -->
+    <path d="M 1020 700 L 1020 815 L 1105 815"/>
+
+    <!-- ATmega SCL (PC5, pin 28) to I2C bus -->
+    <path d="M 1485 228 L 1520 228 L 1520 650 L 1050 650 L 1050 680"/>
+    <!-- ATmega SDA (PC4, pin 27) to I2C bus -->
+    <path d="M 1485 253 L 1530 253 L 1530 660 L 1060 660 L 1060 700"/>
+
+    <!-- Labels -->
+    <rect x="870" y="665" width="60" height="40" class="label-box" fill="#E8F5E9"/>
+    <text x="900" y="680" text-anchor="middle" class="label-text" fill="#4CAF50">I2C Bus</text>
+    <text x="900" y="695" text-anchor="middle" class="label-text" fill="#4CAF50">SCL/SDA</text>
+  </g>
+
+  <!-- ==================== CONEXOES UART GPS ==================== -->
+  <g class="wire wire-uart">
+    <!-- TX-GPS: IO25 (pin 10) -> GPS RXD (pin 1) -->
+    <path d="M 55 355 L 30 355 L 30 790 L 55 790"/>
+    <rect x="10" y="560" width="45" height="32" class="label-box" fill="#E3F2FD"/>
+    <text x="32" y="573" text-anchor="middle" class="label-text" fill="#2196F3">TX</text>
+    <text x="32" y="586" text-anchor="middle" class="label-text" fill="#2196F3">GPS</text>
+
+    <!-- RX-GPS: IO26 (pin 11) -> GPS TXD (pin 2) -->
+    <path d="M 55 380 L 20 380 L 20 815 L 55 815"/>
+    <rect x="0" y="610" width="45" height="32" class="label-box" fill="#E3F2FD"/>
+    <text x="22" y="623" text-anchor="middle" class="label-text" fill="#2196F3">RX</text>
+    <text x="22" y="636" text-anchor="middle" class="label-text" fill="#2196F3">GPS</text>
+
+    <!-- GATE-GPS: IO27 (pin 12) -> GPS control -->
+    <path d="M 55 405 L 10 405 L 10 865 L 55 865"/>
+    <rect x="-10" y="660" width="45" height="32" class="label-box" fill="#E3F2FD"/>
+    <text x="12" y="673" text-anchor="middle" class="label-text" fill="#2196F3">GATE</text>
+    <text x="12" y="686" text-anchor="middle" class="label-text" fill="#2196F3">GPS</text>
+  </g>
+
+  <!-- ==================== CONEXOES USB/Serial ==================== -->
+  <g class="wire wire-uart">
+    <!-- USB D+/D- to CP2102 -->
+    <path d="M 480 850 L 505 850"/>
+    <path d="M 480 875 L 505 875"/>
+
+    <!-- CP2102 TXD to ESP32 RXD0 -->
+    <path d="M 750 850 L 790 850 L 790 750 L 400 750 L 400 255 L 385 255"/>
+    <rect x="410" y="735" width="70" height="16" class="label-box" fill="#E3F2FD"/>
+    <text x="445" y="746" text-anchor="middle" class="label-text" fill="#2196F3">TXD→RXD0</text>
+
+    <!-- CP2102 RXD from ESP32 TXD0 -->
+    <path d="M 750 875 L 800 875 L 800 740 L 410 740 L 410 230 L 385 230"/>
+    <rect x="420" y="722" width="70" height="16" class="label-box" fill="#E3F2FD"/>
+    <text x="455" y="733" text-anchor="middle" class="label-text" fill="#2196F3">RXD←TXD0</text>
+  </g>
+
+  <!-- ==================== CONEXOES Inter-MCU (via Shift Level) ==================== -->
+  <g class="wire wire-inter">
+    <!-- ESP32 TXD0 -> Shift Level -> ATmega PD0 (RXD) -->
+    <path d="M 385 230 L 395 230 L 395 565 L 805 565"/>
+    <path d="M 1050 565 L 1110 565 L 1110 178 L 1155 178"/>
+    <rect x="930" y="548" width="90" height="16" class="label-box" fill="#EFEBE9"/>
+    <text x="975" y="559" text-anchor="middle" class="label-text" fill="#795548">ESP TX→ATM RX</text>
+
+    <!-- ATmega PD1 (TXD) -> Shift Level -> ESP32 RXD0 -->
+    <path d="M 1485 203 L 1540 203 L 1540 620 L 1050 620"/>
+    <path d="M 805 620 L 395 620 L 395 255"/>
+    <rect x="930" y="603" width="90" height="16" class="label-box" fill="#EFEBE9"/>
+    <text x="975" y="614" text-anchor="middle" class="label-text" fill="#795548">ATM TX→ESP RX</text>
+  </g>
+
+  <!-- ==================== LEGENDA ==================== -->
+  <g transform="translate(1650, 520)">
+    <rect x="0" y="0" width="350" height="380" fill="#FFF" stroke="#333" stroke-width="2" rx="8"/>
+    <text x="175" y="30" text-anchor="middle" style="font-size: 16px; font-weight: bold;">LEGENDA</text>
+
+    <line x1="20" y1="60" x2="80" y2="60" class="wire wire-spi1" stroke-width="4"/>
+    <text x="95" y="65" class="legend-text">SPI #1 (ESP32) - LoRa, SD Card</text>
+
+    <line x1="20" y1="95" x2="80" y2="95" class="wire wire-spi2" stroke-width="4"/>
+    <text x="95" y="100" class="legend-text">SPI #2 (ATmega) - Ethernet</text>
+
+    <line x1="20" y1="130" x2="80" y2="130" class="wire wire-i2c" stroke-width="4"/>
+    <text x="95" y="135" class="legend-text">I2C (Compartilhado) - Display, RTC</text>
+
+    <line x1="20" y1="165" x2="80" y2="165" class="wire wire-uart" stroke-width="4"/>
+    <text x="95" y="170" class="legend-text">UART - GPS, USB</text>
+
+    <line x1="20" y1="200" x2="80" y2="200" class="wire wire-inter" stroke-width="4"/>
+    <text x="95" y="205" class="legend-text">Inter-MCU (via Shift Level)</text>
+
+    <text x="20" y="240" style="font-size: 14px; font-weight: bold;">Componentes:</text>
+
+    <rect x="20" y="255" width="40" height="20" class="esp32 component"/>
+    <text x="70" y="270" class="legend-text">ESP32-WROOM-32D</text>
+
+    <rect x="20" y="285" width="40" height="20" class="atmega component"/>
+    <text x="70" y="300" class="legend-text">ATmega328P-AU</text>
+
+    <rect x="20" y="315" width="40" height="20" class="lora component"/>
+    <text x="70" y="330" class="legend-text">LoRa RFM95W</text>
+
+    <rect x="20" y="345" width="40" height="20" class="ethernet component"/>
+    <text x="70" y="360" class="legend-text">Ethernet W5500</text>
+  </g>
+
+  <!-- ==================== TABELA DE CONEXOES ==================== -->
+  <g transform="translate(50, 1050)">
+    <rect x="0" y="0" width="2100" height="700" fill="#FFF" stroke="#333" stroke-width="2" rx="5"/>
+    <text x="1050" y="35" text-anchor="middle" style="font-size: 20px; font-weight: bold;">TABELA DE CONEXOES PRINCIPAIS</text>
+
+    <!-- Headers -->
+    <rect x="10" y="50" width="250" height="30" fill="#333"/>
+    <rect x="260" y="50" width="150" height="30" fill="#333"/>
+    <rect x="410" y="50" width="150" height="30" fill="#333"/>
+    <rect x="560" y="50" width="250" height="30" fill="#333"/>
+    <rect x="810" y="50" width="250" height="30" fill="#333"/>
+    <rect x="1060" y="50" width="200" height="30" fill="#333"/>
+    <rect x="1260" y="50" width="150" height="30" fill="#333"/>
+    <rect x="1410" y="50" width="280" height="30" fill="#333"/>
+    <rect x="1690" y="50" width="400" height="30" fill="#333"/>
+
+    <text x="135" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">Componente</text>
+    <text x="335" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">Interface</text>
+    <text x="485" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">MCU</text>
+    <text x="685" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">Pino Componente</text>
+    <text x="935" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">Pino MCU</text>
+    <text x="1160" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">Sinal</text>
+    <text x="1335" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">GPIO</text>
+    <text x="1550" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">Nome no Esquematico</text>
+    <text x="1890" y="70" text-anchor="middle" fill="#FFF" style="font-size: 12px; font-weight: bold;">Funcao</text>
+
+    <!-- Data rows -->
+    <g style="font-size: 11px; font-family: monospace;">
+      <!-- Row 1: LoRa -->
+      <rect x="10" y="85" width="2080" height="28" fill="#FCE4EC"/>
+      <text x="135" y="103" text-anchor="middle">LoRa RFM95W</text>
+      <text x="335" y="103" text-anchor="middle">SPI #1</text>
+      <text x="485" y="103" text-anchor="middle">ESP32</text>
+      <text x="685" y="103" text-anchor="middle">2, 3, 4, 5, 6, 14</text>
+      <text x="935" y="103" text-anchor="middle">37, 31, 30, 29, 27, 26</text>
+      <text x="1160" y="103" text-anchor="middle">MISO, MOSI, SCK, CS, RST, IRQ</text>
+      <text x="1335" y="103" text-anchor="middle">IO23, 19, 18, 5, 16, 4</text>
+      <text x="1550" y="103" text-anchor="middle">MISO1, MOSI1, SCK1, NSS, RST, DIO0</text>
+      <text x="1890" y="103" text-anchor="middle">Comunicacao LoRa 433MHz</text>
+
+      <!-- Row 2: SD Card -->
+      <rect x="10" y="115" width="2080" height="28" fill="#FFF"/>
+      <text x="135" y="133" text-anchor="middle">SD Card TF-01A</text>
+      <text x="335" y="133" text-anchor="middle">SPI #1</text>
+      <text x="485" y="133" text-anchor="middle">ESP32</text>
+      <text x="685" y="133" text-anchor="middle">2, 3, 5, 7</text>
+      <text x="935" y="133" text-anchor="middle">28, 37, 30, 31</text>
+      <text x="1160" y="133" text-anchor="middle">CS, MOSI, CLK, MISO</text>
+      <text x="1335" y="133" text-anchor="middle">IO17, 23, 18, 19</text>
+      <text x="1550" y="133" text-anchor="middle">CS1, MOSI1, SCK1, MISO1</text>
+      <text x="1890" y="133" text-anchor="middle">Armazenamento de dados/logs</text>
+
+      <!-- Row 3: GPS -->
+      <rect x="10" y="145" width="2080" height="28" fill="#E3F2FD"/>
+      <text x="135" y="163" text-anchor="middle">GPS L80-M39</text>
+      <text x="335" y="163" text-anchor="middle">UART</text>
+      <text x="485" y="163" text-anchor="middle">ESP32</text>
+      <text x="685" y="163" text-anchor="middle">1, 2, 10</text>
+      <text x="935" y="163" text-anchor="middle">10, 11, 12</text>
+      <text x="1160" y="163" text-anchor="middle">RX, TX, GATE</text>
+      <text x="1335" y="163" text-anchor="middle">IO25, 26, 27</text>
+      <text x="1550" y="163" text-anchor="middle">TX-GPS, RX-GPS, GATE-GPS</text>
+      <text x="1890" y="163" text-anchor="middle">Posicao geografica e hora UTC</text>
+
+      <!-- Row 4: Ethernet -->
+      <rect x="10" y="175" width="2080" height="28" fill="#FFF3E0"/>
+      <text x="135" y="193" text-anchor="middle">Ethernet W5500</text>
+      <text x="335" y="193" text-anchor="middle">SPI #2</text>
+      <text x="485" y="193" text-anchor="middle">ATmega328P</text>
+      <text x="685" y="193" text-anchor="middle">32, 33, 34, 35, 36, 37</text>
+      <text x="935" y="193" text-anchor="middle">14, 17, 16, 15, --, --</text>
+      <text x="1160" y="193" text-anchor="middle">CS, SCK, MISO, MOSI, INT, RST</text>
+      <text x="1335" y="193" text-anchor="middle">PB2, PB5, PB4, PB3</text>
+      <text x="1550" y="193" text-anchor="middle">CS2, SCK2, MISO2, MOSI2</text>
+      <text x="1890" y="193" text-anchor="middle">Conexao Ethernet 10/100Mbps</text>
+
+      <!-- Row 5: Display -->
+      <rect x="10" y="205" width="2080" height="28" fill="#E8F5E9"/>
+      <text x="135" y="223" text-anchor="middle">Display OLED</text>
+      <text x="335" y="223" text-anchor="middle">I2C</text>
+      <text x="485" y="223" text-anchor="middle">ESP32 + ATmega</text>
+      <text x="685" y="223" text-anchor="middle">3, 4</text>
+      <text x="935" y="223" text-anchor="middle">36, 33 / 28, 27</text>
+      <text x="1160" y="223" text-anchor="middle">SCL, SDA</text>
+      <text x="1335" y="223" text-anchor="middle">IO22, 21 / PC5, PC4</text>
+      <text x="1550" y="223" text-anchor="middle">SCL-I2C, SDA-I2C</text>
+      <text x="1890" y="223" text-anchor="middle">Interface visual do usuario</text>
+
+      <!-- Row 6: RTC -->
+      <rect x="10" y="235" width="2080" height="28" fill="#FFF"/>
+      <text x="135" y="253" text-anchor="middle">RTC DS1307Z</text>
+      <text x="335" y="253" text-anchor="middle">I2C</text>
+      <text x="485" y="253" text-anchor="middle">ESP32 + ATmega</text>
+      <text x="685" y="253" text-anchor="middle">5, 6</text>
+      <text x="935" y="253" text-anchor="middle">36, 33 / 28, 27</text>
+      <text x="1160" y="253" text-anchor="middle">SDA, SCL</text>
+      <text x="1335" y="253" text-anchor="middle">IO22, 21 / PC5, PC4</text>
+      <text x="1550" y="253" text-anchor="middle">SDA-I2C, SCL-I2C</text>
+      <text x="1890" y="253" text-anchor="middle">Relogio tempo real com bateria</text>
+
+      <!-- Row 7: USB -->
+      <rect x="10" y="265" width="2080" height="28" fill="#FFEBEE"/>
+      <text x="135" y="283" text-anchor="middle">USB CP2102</text>
+      <text x="335" y="283" text-anchor="middle">UART</text>
+      <text x="485" y="283" text-anchor="middle">ESP32 + ATmega</text>
+      <text x="685" y="283" text-anchor="middle">25, 26, 28, 24</text>
+      <text x="935" y="283" text-anchor="middle">35, 34 / 30, 31</text>
+      <text x="1160" y="283" text-anchor="middle">RXD, TXD, DTR, RTS</text>
+      <text x="1335" y="283" text-anchor="middle">TXD0, RXD0 / PD0, PD1</text>
+      <text x="1550" y="283" text-anchor="middle">TXD1, RXD1, TXD2, RXD2</text>
+      <text x="1890" y="283" text-anchor="middle">Programacao e debug via USB</text>
+
+      <!-- Row 8: Shift Level -->
+      <rect x="10" y="295" width="2080" height="28" fill="#EFEBE9"/>
+      <text x="135" y="313" text-anchor="middle">Shift Level SN74HCT08</text>
+      <text x="335" y="313" text-anchor="middle">UART</text>
+      <text x="485" y="313" text-anchor="middle">ESP32 ↔ ATmega</text>
+      <text x="685" y="313" text-anchor="middle">Pinos AND gates</text>
+      <text x="935" y="313" text-anchor="middle">35, 34 ↔ 30, 31</text>
+      <text x="1160" y="313" text-anchor="middle">TX-ESP, RX-ESP</text>
+      <text x="1335" y="313" text-anchor="middle">TXD0, RXD0 ↔ PD0, PD1</text>
+      <text x="1550" y="313" text-anchor="middle">TX-ESP, RX-ESP, TX-ATM, RX-ATM</text>
+      <text x="1890" y="313" text-anchor="middle">Comunicacao entre MCUs (3.3V↔5V)</text>
+    </g>
+
+    <!-- SPI Pinout Details -->
+    <text x="1050" y="370" text-anchor="middle" style="font-size: 16px; font-weight: bold;">DETALHES DOS BARRAMENTOS SPI</text>
+
+    <g transform="translate(50, 390)">
+      <rect x="0" y="0" width="450" height="250" fill="#FCE4EC" stroke="#E91E63" stroke-width="2" rx="5"/>
+      <text x="225" y="25" text-anchor="middle" style="font-size: 14px; font-weight: bold; fill: #E91E63;">SPI #1 - ESP32</text>
+      <text x="20" y="55" style="font-size: 11px; font-family: monospace;">MOSI (IO23, pino 37) → LoRa pino 3 / SD pino 3</text>
+      <text x="20" y="80" style="font-size: 11px; font-family: monospace;">MISO (IO19, pino 31) ← LoRa pino 2 / SD pino 7</text>
+      <text x="20" y="105" style="font-size: 11px; font-family: monospace;">SCK  (IO18, pino 30) → LoRa pino 4 / SD pino 5</text>
+      <text x="20" y="130" style="font-size: 11px; font-family: monospace;">NSS  (IO5,  pino 29) → LoRa pino 5 (CS LoRa)</text>
+      <text x="20" y="155" style="font-size: 11px; font-family: monospace;">CS1  (IO17, pino 28) → SD pino 2 (CS SD Card)</text>
+      <text x="20" y="180" style="font-size: 11px; font-family: monospace;">RST  (IO16, pino 27) → LoRa pino 6 (Reset)</text>
+      <text x="20" y="205" style="font-size: 11px; font-family: monospace;">DIO0 (IO4,  pino 26) ← LoRa pino 14 (IRQ)</text>
+      <text x="20" y="235" style="font-size: 10px; fill: #666;">* LoRa e SD Card compartilham MOSI, MISO, SCK</text>
+    </g>
+
+    <g transform="translate(550, 390)">
+      <rect x="0" y="0" width="450" height="250" fill="#FFF3E0" stroke="#FF9800" stroke-width="2" rx="5"/>
+      <text x="225" y="25" text-anchor="middle" style="font-size: 14px; font-weight: bold; fill: #FF9800;">SPI #2 - ATmega328P</text>
+      <text x="20" y="55" style="font-size: 11px; font-family: monospace;">MOSI2 (PB3, pino 15) → W5500 pino 35</text>
+      <text x="20" y="80" style="font-size: 11px; font-family: monospace;">MISO2 (PB4, pino 16) ← W5500 pino 34</text>
+      <text x="20" y="105" style="font-size: 11px; font-family: monospace;">SCK2  (PB5, pino 17) → W5500 pino 33</text>
+      <text x="20" y="130" style="font-size: 11px; font-family: monospace;">CS2   (PB2, pino 14) → W5500 pino 32 (SCSn)</text>
+      <text x="20" y="155" style="font-size: 11px; font-family: monospace;">INT2  (---) ← W5500 pino 36 (INTn)</text>
+      <text x="20" y="180" style="font-size: 11px; font-family: monospace;">RST2  (---) → W5500 pino 37 (RSTn)</text>
+      <text x="20" y="235" style="font-size: 10px; fill: #666;">* Barramento dedicado para Ethernet</text>
+    </g>
+
+    <g transform="translate(1050, 390)">
+      <rect x="0" y="0" width="450" height="250" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2" rx="5"/>
+      <text x="225" y="25" text-anchor="middle" style="font-size: 14px; font-weight: bold; fill: #4CAF50;">I2C - Compartilhado</text>
+      <text x="20" y="55" style="font-size: 11px; font-family: monospace;">ESP32:</text>
+      <text x="20" y="80" style="font-size: 11px; font-family: monospace;">  SCL (IO22, pino 36) ↔ Display pino 3 / RTC pino 6</text>
+      <text x="20" y="105" style="font-size: 11px; font-family: monospace;">  SDA (IO21, pino 33) ↔ Display pino 4 / RTC pino 5</text>
+      <text x="20" y="140" style="font-size: 11px; font-family: monospace;">ATmega328P:</text>
+      <text x="20" y="165" style="font-size: 11px; font-family: monospace;">  SCL (PC5, pino 28) ↔ Display pino 3 / RTC pino 6</text>
+      <text x="20" y="190" style="font-size: 11px; font-family: monospace;">  SDA (PC4, pino 27) ↔ Display pino 4 / RTC pino 5</text>
+      <text x="20" y="235" style="font-size: 10px; fill: #666;">* Ambos MCUs podem acessar Display e RTC</text>
+    </g>
+
+    <g transform="translate(1550, 390)">
+      <rect x="0" y="0" width="450" height="250" fill="#E3F2FD" stroke="#2196F3" stroke-width="2" rx="5"/>
+      <text x="225" y="25" text-anchor="middle" style="font-size: 14px; font-weight: bold; fill: #2196F3;">UART - GPS e USB</text>
+      <text x="20" y="55" style="font-size: 11px; font-family: monospace;">GPS (ESP32):</text>
+      <text x="20" y="80" style="font-size: 11px; font-family: monospace;">  TX-GPS (IO25, pino 10) → GPS RXD (pino 1)</text>
+      <text x="20" y="105" style="font-size: 11px; font-family: monospace;">  RX-GPS (IO26, pino 11) ← GPS TXD (pino 2)</text>
+      <text x="20" y="130" style="font-size: 11px; font-family: monospace;">  GATE   (IO27, pino 12) → GPS Power Control</text>
+      <text x="20" y="165" style="font-size: 11px; font-family: monospace;">USB Serial (CP2102):</text>
+      <text x="20" y="190" style="font-size: 11px; font-family: monospace;">  TXD (pino 26) → ESP32 RXD0 / ATmega PD0</text>
+      <text x="20" y="215" style="font-size: 11px; font-family: monospace;">  RXD (pino 25) ← ESP32 TXD0 / ATmega PD1</text>
+      <text x="20" y="235" style="font-size: 10px; fill: #666;">* USB com selecao via DTR/RTS para programacao</text>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <text x="1100" y="1780" text-anchor="middle" style="font-size: 12px; fill: #666;">Gateway LoRa JVTECH v4.1 - Diagrama gerado a partir do esquematico Schematic_GATEWAY LORA JVTECH v4.0_2023-05-05.pdf</text>
+
+</svg>

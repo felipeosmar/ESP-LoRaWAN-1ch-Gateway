@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoRaWAN Gateway</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ESP32 LoRaWAN Gateway</h1>
+            <div class="status-bar">
+                <span id="wifi-status" class="status-indicator">WiFi: --</span>
+                <span id="server-status" class="status-indicator">Server: --</span>
+                <span id="lora-status" class="status-indicator">LoRa: --</span>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab active" data-tab="dashboard">Dashboard</button>
+            <button class="tab" data-tab="lora">LoRa</button>
+            <button class="tab" data-tab="server">Server</button>
+            <button class="tab" data-tab="wifi">WiFi</button>
+            <button class="tab" data-tab="ntp">NTP</button>
+            <button class="tab" data-tab="lcd">LCD</button>
+            <button class="tab" data-tab="files">Files</button>
+            <button class="tab" data-tab="system">System</button>
+        </nav>
+
+        <main>
+            <!-- Dashboard Tab -->
+            <section id="dashboard" class="tab-content active">
+                <div class="card">
+                    <h2>Gateway Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Gateway EUI</label>
+                            <span id="gateway-eui">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>IP Address</label>
+                            <span id="ip-address">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Uptime</label>
+                            <span id="uptime">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Free Memory</label>
+                            <span id="free-memory">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Statistics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-value" id="rx-packets">0</span>
+                            <span class="stat-label">RX Packets</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="tx-packets">0</span>
+                            <span class="stat-label">TX Packets</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="rx-forwarded">0</span>
+                            <span class="stat-label">Forwarded</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="crc-errors">0</span>
+                            <span class="stat-label">CRC Errors</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="resetStats()">Reset Statistics</button>
+                </div>
+
+                <div class="card">
+                    <h2>Last Packet</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>RSSI</label>
+                            <span id="last-rssi">-- dBm</span>
+                        </div>
+                        <div class="info-item">
+                            <label>SNR</label>
+                            <span id="last-snr">-- dB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Activity Log</h2>
+                    <div id="log-container" class="log-container"></div>
+                </div>
+            </section>
+
+            <!-- LoRa Tab -->
+            <section id="lora" class="tab-content">
+                <div class="card">
+                    <h2>LoRa Configuration</h2>
+                    <form id="lora-form">
+                        <div class="form-group">
+                            <label>Enabled</label>
+                            <input type="checkbox" id="lora-enabled" checked>
+                        </div>
+                        <div class="form-group">
+                            <label>Frequency (Hz)</label>
+                            <select id="lora-frequency">
+                                <optgroup label="US915">
+                                    <option value="902300000">902.3 MHz (Ch 0)</option>
+                                    <option value="902500000">902.5 MHz (Ch 1)</option>
+                                    <option value="902700000">902.7 MHz (Ch 2)</option>
+                                    <option value="902900000">902.9 MHz (Ch 3)</option>
+                                    <option value="903100000">903.1 MHz (Ch 4)</option>
+                                    <option value="903300000">903.3 MHz (Ch 5)</option>
+                                    <option value="903500000">903.5 MHz (Ch 6)</option>
+                                    <option value="903700000">903.7 MHz (Ch 7)</option>
+                                    <option value="915200000" selected>915.2 MHz (Ch 64)</option>
+                                </optgroup>
+                                <optgroup label="AU915">
+                                    <option value="915200000">915.2 MHz</option>
+                                    <option value="915400000">915.4 MHz</option>
+                                    <option value="915600000">915.6 MHz</option>
+                                    <option value="915800000">915.8 MHz</option>
+                                    <option value="916000000">916.0 MHz</option>
+                                    <option value="916200000">916.2 MHz</option>
+                                    <option value="916400000">916.4 MHz</option>
+                                    <option value="916600000">916.6 MHz</option>
+                                </optgroup>
+                                <optgroup label="EU868">
+                                    <option value="868100000">868.1 MHz</option>
+                                    <option value="868300000">868.3 MHz</option>
+                                    <option value="868500000">868.5 MHz</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Spreading Factor</label>
+                            <select id="lora-sf">
+                                <option value="7">SF7 (Fastest)</option>
+                                <option value="8">SF8</option>
+                                <option value="9">SF9</option>
+                                <option value="10">SF10</option>
+                                <option value="11">SF11</option>
+                                <option value="12">SF12 (Longest Range)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Bandwidth (kHz)</label>
+                            <select id="lora-bw">
+                                <option value="125" selected>125 kHz</option>
+                                <option value="250">250 kHz</option>
+                                <option value="500">500 kHz</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Coding Rate</label>
+                            <select id="lora-cr">
+                                <option value="5" selected>4/5</option>
+                                <option value="6">4/6</option>
+                                <option value="7">4/7</option>
+                                <option value="8">4/8</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>TX Power (dBm)</label>
+                            <input type="number" id="lora-power" value="14" min="2" max="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Sync Word</label>
+                            <select id="lora-syncword">
+                                <option value="52">0x34 - LoRaWAN Public</option>
+                                <option value="18">0x12 - LoRa Private</option>
+                                <option value="20">0x14 - LoRaWAN Private</option>
+                            </select>
+                            <small style="color: #888; display: block; margin-top: 4px;">Must match network configuration</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Server Tab -->
+            <section id="server" class="tab-content">
+                <div class="card">
+                    <h2>Network Server Configuration</h2>
+                    <form id="server-form">
+                        <div class="form-group">
+                            <label>Enabled</label>
+                            <input type="checkbox" id="server-enabled" checked>
+                        </div>
+                        <div class="form-group">
+                            <label>Server Host</label>
+                            <input type="text" id="server-host" placeholder="chirpstack.example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Uplink Port</label>
+                            <input type="number" id="server-port-up" value="1700">
+                        </div>
+                        <div class="form-group">
+                            <label>Downlink Port</label>
+                            <input type="number" id="server-port-down" value="1700">
+                        </div>
+                        <div class="form-group">
+                            <label>Gateway EUI</label>
+                            <input type="text" id="server-eui" placeholder="Auto-generated" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" id="server-description" placeholder="ESP32 1ch Gateway">
+                        </div>
+                        <div class="form-group">
+                            <label>LoRaWAN Region</label>
+                            <select id="server-region">
+                                <option value="US915">US915 (Americas)</option>
+                                <option value="AU915">AU915 (Australia)</option>
+                                <option value="EU868">EU868 (Europe)</option>
+                                <option value="AS923">AS923 (Asia)</option>
+                                <option value="KR920">KR920 (Korea)</option>
+                                <option value="IN865">IN865 (India)</option>
+                                <option value="RU864">RU864 (Russia)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Latitude</label>
+                            <input type="number" id="server-lat" step="0.000001" placeholder="0.0">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude</label>
+                            <input type="number" id="server-lon" step="0.000001" placeholder="0.0">
+                        </div>
+                        <div class="form-group">
+                            <label>Altitude (m)</label>
+                            <input type="number" id="server-alt" placeholder="0">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- WiFi Tab -->
+            <section id="wifi" class="tab-content">
+                <div class="card">
+                    <h2>WiFi Configuration</h2>
+                    <form id="wifi-form">
+                        <div class="form-group">
+                            <label>Hostname (mDNS)</label>
+                            <input type="text" id="wifi-hostname" placeholder="e.g. lora-gateway">
+                            <small style="color: #888; display: block; margin-top: 4px;">Access via http://&lt;hostname&gt;.local</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Mode</label>
+                            <select id="wifi-mode">
+                                <option value="false">Station (Connect to WiFi)</option>
+                                <option value="true">Access Point</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>SSID</label>
+                            <input type="text" id="wifi-ssid" placeholder="Network name">
+                            <button type="button" class="btn btn-secondary" onclick="scanWiFi()">Scan</button>
+                        </div>
+                        <div id="wifi-scan-results"></div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="wifi-password" placeholder="Network password">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- NTP Tab -->
+            <section id="ntp" class="tab-content">
+                <div class="card">
+                    <h2>NTP Time Synchronization</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Status</label>
+                            <span id="ntp-status">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Current Time</label>
+                            <span id="ntp-current-time">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Sync Count</label>
+                            <span id="ntp-sync-count">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Last Sync</label>
+                            <span id="ntp-last-sync">--</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="syncNTP()">Sync Now</button>
+                </div>
+
+                <div class="card">
+                    <h2>NTP Configuration</h2>
+                    <form id="ntp-form">
+                        <div class="form-group">
+                            <label>Enabled</label>
+                            <input type="checkbox" id="ntp-enabled" checked>
+                        </div>
+                        <div class="form-group">
+                            <label>Primary NTP Server</label>
+                            <input type="text" id="ntp-server1" placeholder="pool.ntp.org">
+                        </div>
+                        <div class="form-group">
+                            <label>Secondary NTP Server</label>
+                            <input type="text" id="ntp-server2" placeholder="time.google.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Timezone</label>
+                            <select id="ntp-timezone">
+                                <option value="-43200">UTC-12:00</option>
+                                <option value="-39600">UTC-11:00</option>
+                                <option value="-36000">UTC-10:00 (Hawaii)</option>
+                                <option value="-32400">UTC-09:00 (Alaska)</option>
+                                <option value="-28800">UTC-08:00 (Pacific)</option>
+                                <option value="-25200">UTC-07:00 (Mountain)</option>
+                                <option value="-21600">UTC-06:00 (Central)</option>
+                                <option value="-18000">UTC-05:00 (Eastern)</option>
+                                <option value="-14400">UTC-04:00 (Atlantic)</option>
+                                <option value="-10800">UTC-03:00 (Brasilia)</option>
+                                <option value="-7200">UTC-02:00</option>
+                                <option value="-3600">UTC-01:00</option>
+                                <option value="0" selected>UTC+00:00 (GMT)</option>
+                                <option value="3600">UTC+01:00 (CET)</option>
+                                <option value="7200">UTC+02:00 (EET)</option>
+                                <option value="10800">UTC+03:00 (Moscow)</option>
+                                <option value="14400">UTC+04:00</option>
+                                <option value="18000">UTC+05:00</option>
+                                <option value="19800">UTC+05:30 (India)</option>
+                                <option value="21600">UTC+06:00</option>
+                                <option value="25200">UTC+07:00</option>
+                                <option value="28800">UTC+08:00 (China)</option>
+                                <option value="32400">UTC+09:00 (Japan)</option>
+                                <option value="36000">UTC+10:00 (Sydney)</option>
+                                <option value="39600">UTC+11:00</option>
+                                <option value="43200">UTC+12:00</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Daylight Saving Offset (seconds)</label>
+                            <input type="number" id="ntp-daylight" value="0" min="0" max="7200">
+                        </div>
+                        <div class="form-group">
+                            <label>Sync Interval (minutes)</label>
+                            <input type="number" id="ntp-interval" value="60" min="1" max="1440">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- LCD Tab -->
+            <section id="lcd" class="tab-content">
+                <div class="card">
+                    <h2>LCD Display Status</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Status</label>
+                            <span id="lcd-status">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Address</label>
+                            <span id="lcd-address-display">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Dimensions</label>
+                            <span id="lcd-dimensions">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>I2C Pins</label>
+                            <span id="lcd-pins">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>LCD Configuration</h2>
+                    <form id="lcd-form">
+                        <div class="form-group">
+                            <label>Enabled</label>
+                            <input type="checkbox" id="lcd-enabled">
+                        </div>
+                        <div class="form-group">
+                            <label>I2C Address</label>
+                            <select id="lcd-address">
+                                <option value="39">0x27 (Most common)</option>
+                                <option value="63">0x3F (Alternative)</option>
+                                <option value="32">0x20</option>
+                                <option value="33">0x21</option>
+                                <option value="34">0x22</option>
+                                <option value="35">0x23</option>
+                                <option value="36">0x24</option>
+                                <option value="37">0x25</option>
+                                <option value="38">0x26</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Columns</label>
+                            <select id="lcd-cols">
+                                <option value="16">16 columns</option>
+                                <option value="20">20 columns</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rows</label>
+                            <select id="lcd-rows">
+                                <option value="2">2 rows</option>
+                                <option value="4">4 rows</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>SDA Pin</label>
+                            <input type="number" id="lcd-sda" value="21" min="0" max="39">
+                        </div>
+                        <div class="form-group">
+                            <label>SCL Pin</label>
+                            <input type="number" id="lcd-scl" value="22" min="0" max="39">
+                        </div>
+                        <div class="form-group">
+                            <label>Backlight</label>
+                            <input type="checkbox" id="lcd-backlight" checked>
+                        </div>
+                        <div class="form-group">
+                            <label>Rotation Interval (seconds)</label>
+                            <input type="number" id="lcd-rotation" value="5" min="1" max="60">
+                            <small style="color: #888; display: block; margin-top: 4px;">Time between display mode changes</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                        <button type="button" class="btn btn-secondary" onclick="toggleLCDBacklight()">Toggle Backlight</button>
+                    </form>
+                    <p style="color: #888; margin-top: 10px; font-size: 0.9em;">Note: Pin and address changes require a device restart to take effect.</p>
+                </div>
+            </section>
+
+            <!-- Files Tab -->
+            <section id="files" class="tab-content">
+                <div class="card">
+                    <h2>File Manager</h2>
+                    <div class="file-toolbar">
+                        <button class="btn btn-secondary" onclick="refreshFiles()">Refresh</button>
+                        <button class="btn btn-secondary" onclick="createFolder()">New Folder</button>
+                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Upload</button>
+                        <input type="file" id="fileInput" multiple onchange="handleFileUpload(this.files)" style="display:none">
+                    </div>
+                    <div class="file-path">
+                        Path: <strong id="currentPath">/</strong>
+                    </div>
+                    <div id="uploadProgress" class="progress-bar" style="display: none;">
+                        <div class="progress-fill" id="uploadProgressFill"></div>
+                    </div>
+                    <div class="file-list" id="fileList">
+                        <p style="text-align: center; padding: 20px; color: #999;">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- File Editor Modal -->
+                <div id="editorModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 id="editorTitle">Edit File</h3>
+                            <span class="close-btn" onclick="closeEditor()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <textarea id="fileEditor"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="closeEditor()">Cancel</button>
+                            <button class="btn btn-primary" onclick="saveFile()">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- System Tab -->
+            <section id="system" class="tab-content">
+                <div class="card">
+                    <h2>System Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Chip Model</label>
+                            <span id="chip-model">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>CPU Frequency</label>
+                            <span id="cpu-freq">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>MAC Address</label>
+                            <span id="mac-address">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Heap Total</label>
+                            <span id="heap-total">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Firmware Update</h2>
+                    <form id="ota-form" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label>Firmware File (.bin)</label>
+                            <input type="file" id="ota-file" accept=".bin">
+                        </div>
+                        <div id="ota-progress" class="progress-bar" style="display: none;">
+                            <div class="progress-fill"></div>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Upload Firmware</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>System Actions</h2>
+                    <button class="btn btn-danger" onclick="restartDevice()">Restart Device</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>ESP32 Single Channel LoRaWAN Gateway</p>
+        </footer>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

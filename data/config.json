@@ -1,0 +1,53 @@
+{
+  "wifi": {
+    "hostname": "LoRaGateway",
+    "ap_mode": false,
+    "networks": [
+      {
+        "ssid": "Escalador",
+        "password": "Escalador@123"
+      },
+      {
+        "ssid": "FIESC-IOT",
+        "password": "urb@1983"
+      }
+    ]
+  },
+  "lora": {
+    "enabled": true,
+    "frequency": 915200000,
+    "spreading_factor": 7,
+    "bandwidth": 125,
+    "coding_rate": 5,
+    "tx_power": 14,
+    "sync_word": 52,
+    "pins": {
+      "miso": 19,
+      "mosi": 23,
+      "sck": 18,
+      "nss": 14,
+      "rst": 33,
+      "dio0": 32
+    }
+  },
+  "server": {
+    "enabled": true,
+    "host": "10.1.82.18",
+    "port_up": 1700,
+    "port_down": 1700,
+    "gateway_eui": "24dcc3fffecb9a34",
+    "description": "JVTech ESP32 1ch Gateway LoRa",
+    "region": "US915",
+    "latitude": -26.26381,
+    "longitude": -48.85947,
+    "altitude": 19
+  },
+  "ntp": {
+    "enabled": true,
+    "server1": "pool.ntp.org",
+    "server2": "time.google.com",
+    "timezone_offset": -10800,
+    "daylight_offset": 0,
+    "sync_interval": 3600000
+  }
+}

@@ -22,8 +22,12 @@
             <button class="tab" data-tab="lora">LoRa</button>
             <button class="tab" data-tab="server">Server</button>
             <button class="tab" data-tab="wifi">WiFi</button>
+            <button class="tab" data-tab="network">Network</button>
             <button class="tab" data-tab="ntp">NTP</button>
             <button class="tab" data-tab="lcd">LCD</button>
+            <button class="tab" data-tab="buzzer">Buzzer</button>
+            <button class="tab" data-tab="gps">GPS</button>
+            <button class="tab" data-tab="rtc">RTC</button>
             <button class="tab" data-tab="files">Files</button>
             <button class="tab" data-tab="system">System</button>
         </nav>
@@ -272,6 +276,174 @@
                 </div>
             </section>
 
+            <!-- Network Tab -->
+            <section id="network" class="tab-content">
+                <div class="card">
+                    <h2>Network Status</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Active Interface</label>
+                            <span id="net-active-interface">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Mode</label>
+                            <span id="net-mode">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>IP Address</label>
+                            <span id="net-ip">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Gateway</label>
+                            <span id="net-gateway">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>WiFi Status</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Status</label>
+                            <span id="net-wifi-status">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>SSID</label>
+                            <span id="net-wifi-ssid">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>RSSI</label>
+                            <span id="net-wifi-rssi">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>IP</label>
+                            <span id="net-wifi-ip">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Ethernet Status (via ATmega)</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Status</label>
+                            <span id="net-eth-status">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Link</label>
+                            <span id="net-eth-link">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>IP</label>
+                            <span id="net-eth-ip">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>MAC</label>
+                            <span id="net-eth-mac">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Network Statistics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-value" id="net-wifi-connects">0</span>
+                            <span class="stat-label">WiFi Connects</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="net-eth-connects">0</span>
+                            <span class="stat-label">Eth Connects</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="net-failovers">0</span>
+                            <span class="stat-label">Failovers</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="net-uptime">0</span>
+                            <span class="stat-label">Active Uptime</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="loadNetworkStatus()">Refresh</button>
+                </div>
+
+                <div class="card">
+                    <h2>Network Configuration</h2>
+                    <form id="network-form">
+                        <div class="form-group">
+                            <label>WiFi Enabled</label>
+                            <input type="checkbox" id="net-wifi-enabled" checked>
+                        </div>
+                        <div class="form-group">
+                            <label>Ethernet Enabled</label>
+                            <input type="checkbox" id="net-eth-enabled">
+                        </div>
+                        <div class="form-group">
+                            <label>Primary Interface</label>
+                            <select id="net-primary">
+                                <option value="wifi">WiFi</option>
+                                <option value="ethernet">Ethernet</option>
+                            </select>
+                            <small style="color: #888; display: block; margin-top: 4px;">Interface used when both are available</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Failover Enabled</label>
+                            <input type="checkbox" id="net-failover-enabled" checked>
+                            <small style="color: #888; display: block; margin-top: 4px;">Auto-switch to secondary if primary fails</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Failover Timeout (ms)</label>
+                            <input type="number" id="net-failover-timeout" value="30000" min="5000" max="120000" step="1000">
+                        </div>
+                        <div class="form-group">
+                            <label>Reconnect Interval (ms)</label>
+                            <input type="number" id="net-reconnect-interval" value="10000" min="1000" max="60000" step="1000">
+                        </div>
+
+                        <hr style="border-color: #444; margin: 20px 0;">
+                        <h3 style="margin-bottom: 15px;">Ethernet Configuration</h3>
+
+                        <div class="form-group">
+                            <label>Use DHCP</label>
+                            <input type="checkbox" id="net-eth-dhcp" checked>
+                        </div>
+                        <div class="form-group">
+                            <label>Static IP</label>
+                            <input type="text" id="net-eth-static-ip" placeholder="192.168.1.100">
+                        </div>
+                        <div class="form-group">
+                            <label>Gateway</label>
+                            <input type="text" id="net-eth-gateway" placeholder="192.168.1.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Subnet Mask</label>
+                            <input type="text" id="net-eth-subnet" placeholder="255.255.255.0">
+                        </div>
+                        <div class="form-group">
+                            <label>DNS Server</label>
+                            <input type="text" id="net-eth-dns" placeholder="8.8.8.8">
+                        </div>
+                        <div class="form-group">
+                            <label>DHCP Timeout (ms)</label>
+                            <input type="number" id="net-eth-dhcp-timeout" value="10000" min="5000" max="60000" step="1000">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Manual Control</h2>
+                    <div class="btn-group" style="margin-top: 15px;">
+                        <button type="button" class="btn btn-secondary" onclick="forceInterface('auto')">Auto Mode</button>
+                        <button type="button" class="btn btn-secondary" onclick="forceInterface('wifi')">Force WiFi</button>
+                        <button type="button" class="btn btn-secondary" onclick="forceInterface('ethernet')">Force Ethernet</button>
+                        <button type="button" class="btn btn-warning" onclick="networkReconnect()">Reconnect</button>
+                    </div>
+                    <p style="color: #888; margin-top: 10px; font-size: 0.9em;">Force interface disables automatic failover until Auto Mode is selected.</p>
+                </div>
+            </section>
+
             <!-- NTP Tab -->
             <section id="ntp" class="tab-content">
                 <div class="card">
@@ -436,6 +608,317 @@
                         <button type="button" class="btn btn-secondary" onclick="toggleLCDBacklight()">Toggle Backlight</button>
                     </form>
                     <p style="color: #888; margin-top: 10px; font-size: 0.9em;">Note: Pin and address changes require a device restart to take effect.</p>
+                </div>
+            </section>
+
+            <!-- Buzzer Tab -->
+            <section id="buzzer" class="tab-content">
+                <div class="card">
+                    <h2>Buzzer Status</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Status</label>
+                            <span id="buzzer-status">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>GPIO Pin</label>
+                            <span id="buzzer-pin">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Buzzer Configuration</h2>
+                    <form id="buzzer-form">
+                        <div class="form-group">
+                            <label>Enabled</label>
+                            <input type="checkbox" id="buzzer-enabled">
+                        </div>
+                        <div class="form-group">
+                            <label>Startup Sound</label>
+                            <input type="checkbox" id="buzzer-startup-sound">
+                            <small style="color: #888; display: block; margin-top: 4px;">Play sound on device boot</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Packet RX Sound</label>
+                            <input type="checkbox" id="buzzer-packet-rx">
+                            <small style="color: #888; display: block; margin-top: 4px;">Beep when LoRa packet received</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Packet TX Sound</label>
+                            <input type="checkbox" id="buzzer-packet-tx">
+                            <small style="color: #888; display: block; margin-top: 4px;">Beep when downlink transmitted</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Default Volume</label>
+                            <select id="buzzer-volume">
+                                <option value="25">Low (25%)</option>
+                                <option value="50">Medium (50%)</option>
+                                <option value="75">High (75%)</option>
+                                <option value="100">Maximum (100%)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Test Buzzer</h2>
+                    <div class="form-group">
+                        <label>Frequency (Hz)</label>
+                        <input type="number" id="buzzer-test-freq" value="2000" min="100" max="20000" step="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Duration (ms)</label>
+                        <input type="number" id="buzzer-test-duration" value="200" min="50" max="5000" step="50">
+                    </div>
+                    <div class="btn-group" style="margin-top: 15px;">
+                        <button type="button" class="btn btn-secondary" onclick="testBuzzerTone()">Play Tone</button>
+                        <button type="button" class="btn btn-secondary" onclick="testBuzzerStartup()">Startup Sound</button>
+                        <button type="button" class="btn btn-secondary" onclick="testBuzzerSuccess()">Success Sound</button>
+                        <button type="button" class="btn btn-secondary" onclick="testBuzzerError()">Error Sound</button>
+                        <button type="button" class="btn btn-danger" onclick="stopBuzzer()">Stop</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- GPS Tab -->
+            <section id="gps" class="tab-content">
+                <div class="card">
+                    <h2>GPS Status</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Status</label>
+                            <span id="gps-status">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Fix</label>
+                            <span id="gps-fix">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Satellites</label>
+                            <span id="gps-satellites">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>HDOP</label>
+                            <span id="gps-hdop">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Position</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Latitude</label>
+                            <span id="gps-latitude">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Longitude</label>
+                            <span id="gps-longitude">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Altitude</label>
+                            <span id="gps-altitude">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Speed</label>
+                            <span id="gps-speed">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>GPS Configuration</h2>
+                    <form id="gps-form">
+                        <div class="form-group">
+                            <label>GPS Enabled</label>
+                            <input type="checkbox" id="gps-enabled">
+                            <small style="color: #888; display: block; margin-top: 4px;">Enable GPS module</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Use Fixed Location</label>
+                            <input type="checkbox" id="gps-use-fixed">
+                            <small style="color: #888; display: block; margin-top: 4px;">Use manual coordinates instead of GPS</small>
+                        </div>
+                        <div class="form-group">
+                            <label>RX Pin (GPS TX)</label>
+                            <input type="number" id="gps-rx-pin" value="16" min="0" max="39">
+                        </div>
+                        <div class="form-group">
+                            <label>TX Pin (GPS RX)</label>
+                            <input type="number" id="gps-tx-pin" value="17" min="0" max="39">
+                        </div>
+                        <div class="form-group">
+                            <label>Baud Rate</label>
+                            <select id="gps-baud">
+                                <option value="4800">4800</option>
+                                <option value="9600" selected>9600</option>
+                                <option value="19200">19200</option>
+                                <option value="38400">38400</option>
+                                <option value="57600">57600</option>
+                                <option value="115200">115200</option>
+                            </select>
+                        </div>
+                        <hr style="border-color: #444; margin: 20px 0;">
+                        <h3 style="margin-bottom: 15px;">Fixed Location (when GPS disabled or no fix)</h3>
+                        <div class="form-group">
+                            <label>Latitude</label>
+                            <input type="number" id="gps-fixed-lat" value="0" step="0.000001" min="-90" max="90">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude</label>
+                            <input type="number" id="gps-fixed-lon" value="0" step="0.000001" min="-180" max="180">
+                        </div>
+                        <div class="form-group">
+                            <label>Altitude (meters)</label>
+                            <input type="number" id="gps-fixed-alt" value="0" min="-1000" max="50000">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                    <p style="color: #888; margin-top: 10px; font-size: 0.9em;">Note: Pin changes require a device restart to take effect.</p>
+                </div>
+            </section>
+
+            <!-- RTC Tab -->
+            <section id="rtc" class="tab-content">
+                <div class="card">
+                    <h2>RTC Status (DS1307)</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Status</label>
+                            <span id="rtc-status">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Oscillator</label>
+                            <span id="rtc-oscillator">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Current Date</label>
+                            <span id="rtc-date">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Current Time</label>
+                            <span id="rtc-time">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Day of Week</label>
+                            <span id="rtc-day-of-week">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Read Count</label>
+                            <span id="rtc-read-count">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Write Count</label>
+                            <span id="rtc-write-count">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Errors</label>
+                            <span id="rtc-error-count">--</span>
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top: 15px;">
+                        <button class="btn btn-secondary" onclick="loadRTCStatus()">Refresh</button>
+                        <button class="btn btn-primary" onclick="syncRTCWithNTP()">Sync with NTP</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>RTC Configuration</h2>
+                    <form id="rtc-form">
+                        <div class="form-group">
+                            <label>Enabled</label>
+                            <input type="checkbox" id="rtc-enabled">
+                        </div>
+                        <div class="form-group">
+                            <label>I2C Address</label>
+                            <select id="rtc-address">
+                                <option value="104">0x68 (DS1307/DS3231 default)</option>
+                                <option value="80">0x50</option>
+                                <option value="81">0x51</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>SDA Pin</label>
+                            <input type="number" id="rtc-sda" value="21" min="0" max="39">
+                        </div>
+                        <div class="form-group">
+                            <label>SCL Pin</label>
+                            <input type="number" id="rtc-scl" value="22" min="0" max="39">
+                        </div>
+                        <div class="form-group">
+                            <label>Sync with NTP</label>
+                            <input type="checkbox" id="rtc-sync-ntp">
+                            <small style="color: #888; display: block; margin-top: 4px;">Auto-sync RTC when NTP is available</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Sync Interval (seconds)</label>
+                            <input type="number" id="rtc-sync-interval" value="3600" min="60" max="86400">
+                            <small style="color: #888; display: block; margin-top: 4px;">0 = manual sync only</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Square Wave Output</label>
+                            <select id="rtc-sqw">
+                                <option value="0">Off</option>
+                                <option value="16">1 Hz</option>
+                                <option value="17">4.096 kHz</option>
+                                <option value="18">8.192 kHz</option>
+                                <option value="19">32.768 kHz</option>
+                            </select>
+                            <small style="color: #888; display: block; margin-top: 4px;">DS1307 SQW/OUT pin output</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Timezone Offset (hours)</label>
+                            <select id="rtc-timezone">
+                                <option value="-12">UTC-12:00</option>
+                                <option value="-11">UTC-11:00</option>
+                                <option value="-10">UTC-10:00 (Hawaii)</option>
+                                <option value="-9">UTC-09:00 (Alaska)</option>
+                                <option value="-8">UTC-08:00 (Pacific)</option>
+                                <option value="-7">UTC-07:00 (Mountain)</option>
+                                <option value="-6">UTC-06:00 (Central)</option>
+                                <option value="-5">UTC-05:00 (Eastern)</option>
+                                <option value="-4">UTC-04:00 (Atlantic)</option>
+                                <option value="-3">UTC-03:00 (Brasilia)</option>
+                                <option value="-2">UTC-02:00</option>
+                                <option value="-1">UTC-01:00</option>
+                                <option value="0">UTC+00:00 (GMT)</option>
+                                <option value="1">UTC+01:00 (CET)</option>
+                                <option value="2">UTC+02:00 (EET)</option>
+                                <option value="3">UTC+03:00 (Moscow)</option>
+                                <option value="4">UTC+04:00</option>
+                                <option value="5">UTC+05:00</option>
+                                <option value="6">UTC+06:00</option>
+                                <option value="7">UTC+07:00</option>
+                                <option value="8">UTC+08:00 (China)</option>
+                                <option value="9">UTC+09:00 (Japan)</option>
+                                <option value="10">UTC+10:00 (Sydney)</option>
+                                <option value="11">UTC+11:00</option>
+                                <option value="12">UTC+12:00</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                    <p style="color: #888; margin-top: 10px; font-size: 0.9em;">Note: I2C pin changes require a device restart to take effect.</p>
+                </div>
+
+                <div class="card">
+                    <h2>Set Time Manually</h2>
+                    <form id="rtc-settime-form">
+                        <div class="form-group">
+                            <label>Date</label>
+                            <input type="date" id="rtc-set-date">
+                        </div>
+                        <div class="form-group">
+                            <label>Time</label>
+                            <input type="time" id="rtc-set-time" step="1">
+                        </div>
+                        <div class="btn-group" style="margin-top: 15px;">
+                            <button type="button" class="btn btn-secondary" onclick="setRTCFromBrowser()">Use Browser Time</button>
+                            <button type="submit" class="btn btn-primary">Set Time</button>
+                        </div>
+                    </form>
                 </div>
             </section>
 

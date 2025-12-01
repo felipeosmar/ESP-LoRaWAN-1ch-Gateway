@@ -74,6 +74,36 @@ function initForms() {
         e.preventDefault();
         await saveLCDConfig();
     });
+
+    // Buzzer form
+    document.getElementById('buzzer-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveBuzzerConfig();
+    });
+
+    // GPS form
+    document.getElementById('gps-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveGPSConfig();
+    });
+
+    // RTC form
+    document.getElementById('rtc-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveRTCConfig();
+    });
+
+    // RTC set time form
+    document.getElementById('rtc-settime-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await setRTCManualTime();
+    });
+
+    // Network form
+    document.getElementById('network-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveNetworkConfig();
+    });
 }
 
 // WebSocket connection
@@ -168,8 +198,12 @@ async function loadConfigs() {
     await loadLoRaConfig();
     await loadServerConfig();
     await loadWiFiConfig();
+    await loadNetworkConfig();
     await loadNTPConfig();
     await loadLCDConfig();
+    await loadBuzzerConfig();
+    await loadGPSConfig();
+    await loadRTCConfig();
 }
 
 async function loadLoRaConfig() {
@@ -424,6 +458,363 @@ async function toggleLCDBacklight() {
         }
     } catch (error) {
         console.error('Failed to toggle backlight:', error);
+    }
+}
+
+// ================== Buzzer Functions ==================
+
+async function loadBuzzerConfig() {
+    try {
+        const response = await fetch('/api/buzzer/config');
+        const data = await response.json();
+
+        // Update status display
+        document.getElementById('buzzer-status').textContent = data.available ? 'Active' : (data.enabled ? 'Enabled' : 'Disabled');
+        document.getElementById('buzzer-status').className = data.available ? 'status-ok' : 'status-warn';
+        document.getElementById('buzzer-pin').textContent = 'GPIO ' + data.pin;
+
+        // Update form fields
+        document.getElementById('buzzer-enabled').checked = data.enabled;
+        document.getElementById('buzzer-startup-sound').checked = data.startup_sound;
+        document.getElementById('buzzer-packet-rx').checked = data.packet_rx_sound;
+        document.getElementById('buzzer-packet-tx').checked = data.packet_tx_sound;
+        document.getElementById('buzzer-volume').value = data.volume || 75;
+    } catch (error) {
+        console.error('Failed to load Buzzer config:', error);
+    }
+}
+
+async function saveBuzzerConfig() {
+    const config = {
+        enabled: document.getElementById('buzzer-enabled').checked,
+        startup_sound: document.getElementById('buzzer-startup-sound').checked,
+        packet_rx_sound: document.getElementById('buzzer-packet-rx').checked,
+        packet_tx_sound: document.getElementById('buzzer-packet-tx').checked,
+        volume: parseInt(document.getElementById('buzzer-volume').value)
+    };
+
+    try {
+        const response = await fetch('/api/buzzer/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await response.json();
+        alert(result.message || 'Configuration saved');
+        loadBuzzerConfig();
+    } catch (error) {
+        alert('Failed to save configuration');
+        console.error(error);
+    }
+}
+
+async function testBuzzerTone() {
+    const frequency = parseInt(document.getElementById('buzzer-test-freq').value);
+    const duration = parseInt(document.getElementById('buzzer-test-duration').value);
+
+    try {
+        const response = await fetch('/api/buzzer/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'tone', frequency, duration })
+        });
+        const result = await response.json();
+        if (!result.success) {
+            alert(result.error || 'Failed to play tone');
+        }
+    } catch (error) {
+        console.error('Failed to test buzzer:', error);
+    }
+}
+
+async function testBuzzerStartup() {
+    try {
+        const response = await fetch('/api/buzzer/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'startup' })
+        });
+        const result = await response.json();
+        if (!result.success) {
+            alert(result.error || 'Failed to play sound');
+        }
+    } catch (error) {
+        console.error('Failed to test buzzer:', error);
+    }
+}
+
+async function testBuzzerSuccess() {
+    try {
+        const response = await fetch('/api/buzzer/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'success' })
+        });
+        const result = await response.json();
+        if (!result.success) {
+            alert(result.error || 'Failed to play sound');
+        }
+    } catch (error) {
+        console.error('Failed to test buzzer:', error);
+    }
+}
+
+async function testBuzzerError() {
+    try {
+        const response = await fetch('/api/buzzer/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'error' })
+        });
+        const result = await response.json();
+        if (!result.success) {
+            alert(result.error || 'Failed to play sound');
+        }
+    } catch (error) {
+        console.error('Failed to test buzzer:', error);
+    }
+}
+
+async function stopBuzzer() {
+    try {
+        const response = await fetch('/api/buzzer/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'stop' })
+        });
+    } catch (error) {
+        console.error('Failed to stop buzzer:', error);
+    }
+}
+
+// ================== GPS Functions ==================
+
+async function loadGPSConfig() {
+    try {
+        const response = await fetch('/api/gps/config');
+        const data = await response.json();
+
+        // Update status display
+        if (data.enabled) {
+            document.getElementById('gps-status').textContent = data.has_fix ? 'Active' : 'No Fix';
+            document.getElementById('gps-status').className = data.has_fix ? 'status-ok' : 'status-warn';
+        } else {
+            document.getElementById('gps-status').textContent = 'Disabled';
+            document.getElementById('gps-status').className = 'status-error';
+        }
+
+        document.getElementById('gps-fix').textContent = data.has_fix ? (data.use_fixed ? 'Fixed Location' : 'GPS Fix') : 'No Fix';
+        document.getElementById('gps-satellites').textContent = data.satellites || 0;
+        document.getElementById('gps-hdop').textContent = data.hdop ? data.hdop.toFixed(2) : '--';
+
+        // Update position display
+        document.getElementById('gps-latitude').textContent = data.latitude ? data.latitude.toFixed(6) + '°' : '--';
+        document.getElementById('gps-longitude').textContent = data.longitude ? data.longitude.toFixed(6) + '°' : '--';
+        document.getElementById('gps-altitude').textContent = data.altitude ? data.altitude + ' m' : '--';
+        document.getElementById('gps-speed').textContent = data.speed ? data.speed.toFixed(1) + ' km/h' : '--';
+
+        // Update form fields
+        document.getElementById('gps-enabled').checked = data.enabled;
+        document.getElementById('gps-use-fixed').checked = data.use_fixed;
+        document.getElementById('gps-rx-pin').value = data.rx_pin || 16;
+        document.getElementById('gps-tx-pin').value = data.tx_pin || 17;
+        document.getElementById('gps-baud').value = data.baud_rate || 9600;
+        document.getElementById('gps-fixed-lat').value = data.latitude || 0;
+        document.getElementById('gps-fixed-lon').value = data.longitude || 0;
+        document.getElementById('gps-fixed-alt').value = data.altitude || 0;
+    } catch (error) {
+        console.error('Failed to load GPS config:', error);
+    }
+}
+
+async function saveGPSConfig() {
+    const config = {
+        enabled: document.getElementById('gps-enabled').checked,
+        use_fixed: document.getElementById('gps-use-fixed').checked,
+        rx_pin: parseInt(document.getElementById('gps-rx-pin').value),
+        tx_pin: parseInt(document.getElementById('gps-tx-pin').value),
+        baud_rate: parseInt(document.getElementById('gps-baud').value),
+        latitude: parseFloat(document.getElementById('gps-fixed-lat').value),
+        longitude: parseFloat(document.getElementById('gps-fixed-lon').value),
+        altitude: parseInt(document.getElementById('gps-fixed-alt').value)
+    };
+
+    try {
+        const response = await fetch('/api/gps/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await response.json();
+        alert(result.message || 'Configuration saved');
+        loadGPSConfig();
+    } catch (error) {
+        alert('Failed to save configuration');
+        console.error(error);
+    }
+}
+
+// ================== RTC Functions ==================
+
+async function loadRTCConfig() {
+    try {
+        const response = await fetch('/api/rtc/config');
+        const data = await response.json();
+
+        // Update form fields
+        document.getElementById('rtc-enabled').checked = data.enabled;
+        document.getElementById('rtc-address').value = data.i2cAddress || 104;
+        document.getElementById('rtc-sda').value = data.sdaPin || 21;
+        document.getElementById('rtc-scl').value = data.sclPin || 22;
+        document.getElementById('rtc-sync-ntp').checked = data.syncWithNTP;
+        document.getElementById('rtc-sync-interval').value = data.syncInterval || 3600;
+        document.getElementById('rtc-sqw').value = data.squareWaveMode || 0;
+        document.getElementById('rtc-timezone').value = data.timezoneOffset || -3;
+
+        // Load status
+        await loadRTCStatus();
+    } catch (error) {
+        console.error('Failed to load RTC config:', error);
+    }
+}
+
+async function loadRTCStatus() {
+    try {
+        const response = await fetch('/api/rtc/status');
+        const data = await response.json();
+
+        // Update status display
+        if (data.available) {
+            document.getElementById('rtc-status').textContent = 'Active';
+            document.getElementById('rtc-status').className = 'status-ok';
+        } else {
+            document.getElementById('rtc-status').textContent = data.enabled === false ? 'Disabled' : 'Not Found';
+            document.getElementById('rtc-status').className = 'status-error';
+        }
+
+        document.getElementById('rtc-oscillator').textContent = data.oscillatorRunning ? 'Running' : 'Stopped';
+        document.getElementById('rtc-oscillator').className = data.oscillatorRunning ? 'status-ok' : 'status-warn';
+
+        document.getElementById('rtc-date').textContent = data.formattedDate || '--';
+        document.getElementById('rtc-time').textContent = data.formattedTime || '--';
+
+        if (data.currentTime && data.currentTime.dayName) {
+            document.getElementById('rtc-day-of-week').textContent = data.currentTime.dayName;
+        } else {
+            document.getElementById('rtc-day-of-week').textContent = '--';
+        }
+
+        document.getElementById('rtc-read-count').textContent = data.readCount || 0;
+        document.getElementById('rtc-write-count').textContent = data.writeCount || 0;
+        document.getElementById('rtc-error-count').textContent = data.errorCount || 0;
+        document.getElementById('rtc-error-count').className = data.errorCount > 0 ? 'status-warn' : '';
+
+    } catch (error) {
+        console.error('Failed to load RTC status:', error);
+    }
+}
+
+async function saveRTCConfig() {
+    const config = {
+        enabled: document.getElementById('rtc-enabled').checked,
+        i2cAddress: parseInt(document.getElementById('rtc-address').value),
+        sdaPin: parseInt(document.getElementById('rtc-sda').value),
+        sclPin: parseInt(document.getElementById('rtc-scl').value),
+        syncWithNTP: document.getElementById('rtc-sync-ntp').checked,
+        syncInterval: parseInt(document.getElementById('rtc-sync-interval').value),
+        squareWaveMode: parseInt(document.getElementById('rtc-sqw').value),
+        timezoneOffset: parseInt(document.getElementById('rtc-timezone').value)
+    };
+
+    try {
+        const response = await fetch('/api/rtc/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await response.json();
+        alert(result.message || 'Configuration saved');
+        loadRTCConfig();
+    } catch (error) {
+        alert('Failed to save configuration');
+        console.error(error);
+    }
+}
+
+async function syncRTCWithNTP() {
+    try {
+        const response = await fetch('/api/rtc/sync', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+            alert('RTC synchronized with NTP:\n' + data.formattedDateTime);
+            addLog('RTC synchronized with NTP');
+            loadRTCStatus();
+        } else {
+            alert('Sync failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Sync failed: ' + error.message);
+        console.error(error);
+    }
+}
+
+function setRTCFromBrowser() {
+    const now = new Date();
+
+    // Format date as YYYY-MM-DD for input type="date"
+    const dateStr = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0');
+
+    // Format time as HH:MM:SS for input type="time"
+    const timeStr = String(now.getHours()).padStart(2, '0') + ':' +
+        String(now.getMinutes()).padStart(2, '0') + ':' +
+        String(now.getSeconds()).padStart(2, '0');
+
+    document.getElementById('rtc-set-date').value = dateStr;
+    document.getElementById('rtc-set-time').value = timeStr;
+}
+
+async function setRTCManualTime() {
+    const dateVal = document.getElementById('rtc-set-date').value;
+    const timeVal = document.getElementById('rtc-set-time').value;
+
+    if (!dateVal || !timeVal) {
+        alert('Please enter both date and time');
+        return;
+    }
+
+    const dateParts = dateVal.split('-');
+    const timeParts = timeVal.split(':');
+
+    const config = {
+        year: parseInt(dateParts[0]),
+        month: parseInt(dateParts[1]),
+        day: parseInt(dateParts[2]),
+        hours: parseInt(timeParts[0]),
+        minutes: parseInt(timeParts[1]),
+        seconds: parseInt(timeParts[2]) || 0
+    };
+
+    try {
+        const response = await fetch('/api/rtc/settime', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Time set successfully:\n' + result.formattedDateTime);
+            addLog('RTC time set manually');
+            loadRTCStatus();
+        } else {
+            alert('Failed to set time: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to set time: ' + error.message);
+        console.error(error);
     }
 }
 
@@ -902,3 +1293,185 @@ window.addEventListener('click', (event) => {
         closeEditor();
     }
 });
+
+// ============================================================
+// Network Manager Functions
+// ============================================================
+
+async function loadNetworkConfig() {
+    try {
+        const response = await fetch('/api/network/config');
+        const data = await response.json();
+
+        if (data.error) {
+            console.log('Network Manager not available');
+            return;
+        }
+
+        // Update form fields
+        document.getElementById('net-wifi-enabled').checked = data.wifi_enabled;
+        document.getElementById('net-eth-enabled').checked = data.ethernet_enabled;
+        document.getElementById('net-primary').value = data.primary || 'wifi';
+        document.getElementById('net-failover-enabled').checked = data.failover_enabled;
+        document.getElementById('net-failover-timeout').value = data.failover_timeout || 30000;
+        document.getElementById('net-reconnect-interval').value = data.reconnect_interval || 10000;
+
+        // Ethernet config
+        if (data.ethernet) {
+            document.getElementById('net-eth-dhcp').checked = data.ethernet.dhcp;
+            document.getElementById('net-eth-static-ip').value = data.ethernet.static_ip || '';
+            document.getElementById('net-eth-gateway').value = data.ethernet.gateway || '';
+            document.getElementById('net-eth-subnet').value = data.ethernet.subnet || '';
+            document.getElementById('net-eth-dns').value = data.ethernet.dns || '';
+            document.getElementById('net-eth-dhcp-timeout').value = data.ethernet.dhcp_timeout || 10000;
+        }
+
+        // Load status
+        await loadNetworkStatus();
+    } catch (error) {
+        console.error('Failed to load Network config:', error);
+    }
+}
+
+async function loadNetworkStatus() {
+    try {
+        const response = await fetch('/api/network/status');
+        const data = await response.json();
+
+        if (data.error) {
+            document.getElementById('net-active-interface').textContent = 'Not Available';
+            return;
+        }
+
+        // Active interface info
+        document.getElementById('net-active-interface').textContent = data.activeInterface || 'None';
+        document.getElementById('net-active-interface').className = data.connected ? 'status-ok' : 'status-warn';
+        document.getElementById('net-mode').textContent = data.manualMode ? 'Manual' : 'Auto';
+        document.getElementById('net-ip').textContent = data.ip || '--';
+        document.getElementById('net-gateway').textContent = data.gateway || '--';
+
+        // WiFi status
+        if (data.wifi) {
+            document.getElementById('net-wifi-status').textContent = data.wifi.connected ? 'Connected' : 'Disconnected';
+            document.getElementById('net-wifi-status').className = data.wifi.connected ? 'status-ok' : 'status-warn';
+            document.getElementById('net-wifi-ssid').textContent = data.wifi.ssid || '--';
+            document.getElementById('net-wifi-rssi').textContent = data.wifi.rssi ? data.wifi.rssi + ' dBm' : '--';
+            document.getElementById('net-wifi-ip').textContent = data.wifi.ip || '--';
+        }
+
+        // Ethernet status
+        if (data.ethernet) {
+            let ethStatus = 'Disabled';
+            if (data.ethernet.connected) ethStatus = 'Connected';
+            else if (data.ethernet.linkUp) ethStatus = 'Link Up';
+            else if (data.ethernet.enabled) ethStatus = 'No Cable';
+
+            document.getElementById('net-eth-status').textContent = ethStatus;
+            document.getElementById('net-eth-status').className = data.ethernet.connected ? 'status-ok' :
+                                                                   (data.ethernet.linkUp ? 'status-warn' : 'status-error');
+            document.getElementById('net-eth-link').textContent = data.ethernet.linkUp ? 'Up' : 'Down';
+            document.getElementById('net-eth-link').className = data.ethernet.linkUp ? 'status-ok' : 'status-error';
+            document.getElementById('net-eth-ip').textContent = data.ethernet.ip || '--';
+            document.getElementById('net-eth-mac').textContent = data.ethernet.mac || '--';
+        }
+
+        // Statistics
+        if (data.stats) {
+            document.getElementById('net-wifi-connects').textContent = data.stats.wifiConnections || 0;
+            document.getElementById('net-eth-connects').textContent = data.stats.ethernetConnections || 0;
+            document.getElementById('net-failovers').textContent = data.stats.failoverCount || 0;
+
+            // Calculate active uptime
+            let uptime = 0;
+            if (data.activeInterface === 'WiFi') {
+                uptime = data.stats.totalUptimeWifi || 0;
+            } else if (data.activeInterface === 'Ethernet') {
+                uptime = data.stats.totalUptimeEthernet || 0;
+            }
+            document.getElementById('net-uptime').textContent = formatUptime(Math.floor(uptime / 1000));
+        }
+    } catch (error) {
+        console.error('Failed to load Network status:', error);
+    }
+}
+
+async function saveNetworkConfig() {
+    const config = {
+        wifi_enabled: document.getElementById('net-wifi-enabled').checked,
+        ethernet_enabled: document.getElementById('net-eth-enabled').checked,
+        primary: document.getElementById('net-primary').value,
+        failover_enabled: document.getElementById('net-failover-enabled').checked,
+        failover_timeout: parseInt(document.getElementById('net-failover-timeout').value),
+        reconnect_interval: parseInt(document.getElementById('net-reconnect-interval').value),
+        ethernet: {
+            dhcp: document.getElementById('net-eth-dhcp').checked,
+            static_ip: document.getElementById('net-eth-static-ip').value,
+            gateway: document.getElementById('net-eth-gateway').value,
+            subnet: document.getElementById('net-eth-subnet').value,
+            dns: document.getElementById('net-eth-dns').value,
+            dhcp_timeout: parseInt(document.getElementById('net-eth-dhcp-timeout').value)
+        }
+    };
+
+    try {
+        const response = await fetch('/api/network/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await response.json();
+
+        if (result.status === 'ok') {
+            alert('Network configuration saved');
+            addLog('Network config saved');
+            loadNetworkConfig();
+        } else {
+            alert('Failed to save: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to save configuration');
+        console.error(error);
+    }
+}
+
+async function forceInterface(iface) {
+    try {
+        const response = await fetch('/api/network/force', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ interface: iface })
+        });
+        const result = await response.json();
+
+        if (result.status === 'ok') {
+            if (iface === 'auto') {
+                addLog('Network: Switched to auto mode');
+            } else {
+                addLog('Network: Forced to ' + iface);
+            }
+            setTimeout(loadNetworkStatus, 1000);
+        } else {
+            alert('Failed: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to switch interface');
+        console.error(error);
+    }
+}
+
+async function networkReconnect() {
+    try {
+        const response = await fetch('/api/network/reconnect', { method: 'POST' });
+        const result = await response.json();
+
+        if (result.status === 'ok') {
+            addLog('Network: Reconnecting...');
+            setTimeout(loadNetworkStatus, 3000);
+        } else {
+            alert('Failed: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to reconnect');
+        console.error(error);
+    }
+}

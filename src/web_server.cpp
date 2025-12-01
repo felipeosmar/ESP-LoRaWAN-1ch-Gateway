@@ -8,6 +8,10 @@
 #include "udp_forwarder.h"
 #include "ntp_manager.h"
 #include "lcd_manager.h"
+#include "buzzer_manager.h"
+#include "gps_manager.h"
+#include "rtc_manager.h"
+#include "network_manager.h"
 
 // Global instance
 WebServerManager webServer;
@@ -150,6 +154,98 @@ void WebServerManager::setupRoutes() {
             handleLCDConfigPost(request, data, len, index, total);
         }
     );
+
+    // Buzzer configuration
+    server.on("/api/buzzer/config", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        handleBuzzerConfig(request);
+    });
+
+    server.on("/api/buzzer/config", HTTP_POST,
+        [](AsyncWebServerRequest *request) {},
+        nullptr,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleBuzzerConfigPost(request, data, len, index, total);
+        }
+    );
+
+    server.on("/api/buzzer/test", HTTP_POST,
+        [](AsyncWebServerRequest *request) {},
+        nullptr,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleBuzzerTest(request, data, len, index, total);
+        }
+    );
+
+    // GPS configuration
+    server.on("/api/gps/config", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        handleGPSConfig(request);
+    });
+
+    server.on("/api/gps/config", HTTP_POST,
+        [](AsyncWebServerRequest *request) {},
+        nullptr,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleGPSConfigPost(request, data, len, index, total);
+        }
+    );
+
+    // RTC configuration
+    server.on("/api/rtc/config", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        handleRTCConfig(request);
+    });
+
+    server.on("/api/rtc/config", HTTP_POST,
+        [](AsyncWebServerRequest *request) {},
+        nullptr,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleRTCConfigPost(request, data, len, index, total);
+        }
+    );
+
+    server.on("/api/rtc/status", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        handleRTCStatus(request);
+    });
+
+    server.on("/api/rtc/sync", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        handleRTCSync(request);
+    });
+
+    server.on("/api/rtc/settime", HTTP_POST,
+        [](AsyncWebServerRequest *request) {},
+        nullptr,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleRTCSetTime(request, data, len, index, total);
+        }
+    );
+
+    // Network Manager API
+    server.on("/api/network/status", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        handleNetworkStatus(request);
+    });
+
+    server.on("/api/network/config", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        handleNetworkConfig(request);
+    });
+
+    server.on("/api/network/config", HTTP_POST,
+        [](AsyncWebServerRequest *request) {},
+        nullptr,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleNetworkConfigPost(request, data, len, index, total);
+        }
+    );
+
+    server.on("/api/network/force", HTTP_POST,
+        [](AsyncWebServerRequest *request) {},
+        nullptr,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleNetworkForce(request, data, len, index, total);
+        }
+    );
+
+    server.on("/api/network/reconnect", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        handleNetworkReconnect(request);
+    });
 
     // File Manager API
     server.on("/api/files/list", HTTP_GET, [this](AsyncWebServerRequest *request) {
@@ -854,6 +950,338 @@ void WebServerManager::handleLCDConfigPost(AsyncWebServerRequest *request,
     }
 }
 
+// ================== Buzzer Handlers ==================
+
+void WebServerManager::handleBuzzerConfig(AsyncWebServerRequest *request) {
+    DynamicJsonDocument doc(512);
+
+#if BUZZER_ENABLED
+    doc["enabled"] = buzzer.isEnabled();
+    doc["available"] = true;
+    doc["pin"] = BUZZER_PIN;
+    doc["startup_sound"] = buzzer.getConfig().startupSound;
+    doc["packet_rx_sound"] = buzzer.getConfig().packetRxSound;
+    doc["packet_tx_sound"] = buzzer.getConfig().packetTxSound;
+    doc["volume"] = buzzer.getConfig().volume;
+#else
+    doc["enabled"] = false;
+    doc["available"] = false;
+    doc["pin"] = 0;
+    doc["startup_sound"] = false;
+    doc["packet_rx_sound"] = false;
+    doc["packet_tx_sound"] = false;
+    doc["volume"] = 0;
+#endif
+
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+}
+
+void WebServerManager::handleBuzzerConfigPost(AsyncWebServerRequest *request,
+                                               uint8_t *data, size_t len,
+                                               size_t index, size_t total) {
+    if (index + len != total) return;
+
+    DynamicJsonDocument doc(512);
+    DeserializationError error = deserializeJson(doc, data, len);
+
+    if (error) {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+
+#if BUZZER_ENABLED
+    BuzzerConfig& cfg = buzzer.getConfig();
+
+    if (doc.containsKey("enabled")) {
+        bool enabled = doc["enabled"];
+        buzzer.setEnabled(enabled);
+    }
+    if (doc.containsKey("startup_sound")) cfg.startupSound = doc["startup_sound"];
+    if (doc.containsKey("packet_rx_sound")) cfg.packetRxSound = doc["packet_rx_sound"];
+    if (doc.containsKey("packet_tx_sound")) cfg.packetTxSound = doc["packet_tx_sound"];
+    if (doc.containsKey("volume")) cfg.volume = doc["volume"];
+
+    if (buzzer.saveConfig()) {
+        request->send(200, "application/json", "{\"success\":true,\"message\":\"Buzzer config saved.\"}");
+    } else {
+        request->send(500, "application/json", "{\"error\":\"Failed to save config\"}");
+    }
+#else
+    request->send(400, "application/json", "{\"error\":\"Buzzer not enabled in firmware\"}");
+#endif
+}
+
+void WebServerManager::handleBuzzerTest(AsyncWebServerRequest *request,
+                                         uint8_t *data, size_t len,
+                                         size_t index, size_t total) {
+    if (index + len != total) return;
+
+    DynamicJsonDocument doc(256);
+    DeserializationError error = deserializeJson(doc, data, len);
+
+    if (error) {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+
+#if BUZZER_ENABLED
+    String action = doc["action"] | "tone";
+
+    if (action == "tone") {
+        uint16_t freq = doc["frequency"] | 2000;
+        uint16_t duration = doc["duration"] | 200;
+        buzzer.beep(freq, duration);
+        request->send(200, "application/json", "{\"success\":true}");
+    } else if (action == "startup") {
+        buzzer.playStartup();
+        request->send(200, "application/json", "{\"success\":true}");
+    } else if (action == "success") {
+        buzzer.playSuccess();
+        request->send(200, "application/json", "{\"success\":true}");
+    } else if (action == "error") {
+        buzzer.playError();
+        request->send(200, "application/json", "{\"success\":true}");
+    } else if (action == "stop") {
+        buzzer.stop();
+        request->send(200, "application/json", "{\"success\":true}");
+    } else {
+        request->send(400, "application/json", "{\"error\":\"Unknown action\"}");
+    }
+#else
+    request->send(400, "application/json", "{\"error\":\"Buzzer not enabled in firmware\"}");
+#endif
+}
+
+void WebServerManager::handleGPSConfig(AsyncWebServerRequest *request) {
+#if GPS_ENABLED
+    request->send(200, "application/json", gpsManager.getStatusJson());
+#else
+    DynamicJsonDocument doc(128);
+    doc["enabled"] = false;
+    doc["error"] = "GPS not enabled in firmware";
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+#endif
+}
+
+void WebServerManager::handleGPSConfigPost(AsyncWebServerRequest *request,
+                                            uint8_t *data, size_t len,
+                                            size_t index, size_t total) {
+    if (index + len != total) return;
+
+    DynamicJsonDocument doc(512);
+    DeserializationError error = deserializeJson(doc, data, len);
+
+    if (error) {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+
+#if GPS_ENABLED
+    GPSConfig& cfg = gpsManager.getConfig();
+
+    if (doc.containsKey("enabled")) cfg.enabled = doc["enabled"];
+    if (doc.containsKey("use_fixed")) cfg.useFixedLocation = doc["use_fixed"];
+    if (doc.containsKey("rx_pin")) cfg.rxPin = doc["rx_pin"];
+    if (doc.containsKey("tx_pin")) cfg.txPin = doc["tx_pin"];
+    if (doc.containsKey("baud_rate")) cfg.baudRate = doc["baud_rate"];
+    if (doc.containsKey("latitude")) cfg.fixedLatitude = doc["latitude"];
+    if (doc.containsKey("longitude")) cfg.fixedLongitude = doc["longitude"];
+    if (doc.containsKey("altitude")) cfg.fixedAltitude = doc["altitude"];
+
+    if (gpsManager.saveConfig()) {
+        request->send(200, "application/json", "{\"success\":true,\"message\":\"GPS config saved. Restart required for pin changes.\"}");
+    } else {
+        request->send(500, "application/json", "{\"error\":\"Failed to save config\"}");
+    }
+#else
+    request->send(400, "application/json", "{\"error\":\"GPS not enabled in firmware\"}");
+#endif
+}
+
+// ================== RTC Handlers ==================
+
+void WebServerManager::handleRTCConfig(AsyncWebServerRequest *request) {
+#if RTC_ENABLED
+    RTCConfig& cfg = rtcManager.getConfig();
+    RTCStatus& st = rtcManager.getStatus();
+
+    DynamicJsonDocument doc(512);
+    doc["enabled"] = cfg.enabled;
+    doc["i2cAddress"] = cfg.i2cAddress;
+    doc["i2cAddressHex"] = String("0x") + String(cfg.i2cAddress, HEX);
+    doc["sdaPin"] = cfg.sdaPin;
+    doc["sclPin"] = cfg.sclPin;
+    doc["syncWithNTP"] = cfg.syncWithNTP;
+    doc["syncInterval"] = cfg.syncInterval;
+    doc["squareWaveMode"] = cfg.squareWaveMode;
+    doc["timezoneOffset"] = cfg.timezoneOffset;
+    doc["available"] = st.available;
+
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+#else
+    DynamicJsonDocument doc(128);
+    doc["enabled"] = false;
+    doc["error"] = "RTC not enabled in firmware";
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+#endif
+}
+
+void WebServerManager::handleRTCConfigPost(AsyncWebServerRequest *request,
+                                            uint8_t *data, size_t len,
+                                            size_t index, size_t total) {
+    if (index + len != total) return;
+
+    DynamicJsonDocument doc(512);
+    DeserializationError error = deserializeJson(doc, data, len);
+
+    if (error) {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+
+#if RTC_ENABLED
+    RTCConfig& cfg = rtcManager.getConfig();
+
+    if (doc.containsKey("enabled")) cfg.enabled = doc["enabled"];
+    if (doc.containsKey("i2cAddress")) cfg.i2cAddress = doc["i2cAddress"];
+    if (doc.containsKey("sdaPin")) cfg.sdaPin = doc["sdaPin"];
+    if (doc.containsKey("sclPin")) cfg.sclPin = doc["sclPin"];
+    if (doc.containsKey("syncWithNTP")) cfg.syncWithNTP = doc["syncWithNTP"];
+    if (doc.containsKey("syncInterval")) cfg.syncInterval = doc["syncInterval"];
+    if (doc.containsKey("squareWaveMode")) {
+        cfg.squareWaveMode = doc["squareWaveMode"];
+        rtcManager.setSquareWave(cfg.squareWaveMode);
+    }
+    if (doc.containsKey("timezoneOffset")) cfg.timezoneOffset = doc["timezoneOffset"];
+
+    if (rtcManager.saveConfig()) {
+        request->send(200, "application/json", "{\"success\":true,\"message\":\"RTC config saved. Restart for I2C pin changes.\"}");
+    } else {
+        request->send(500, "application/json", "{\"error\":\"Failed to save config\"}");
+    }
+#else
+    request->send(400, "application/json", "{\"error\":\"RTC not enabled in firmware\"}");
+#endif
+}
+
+void WebServerManager::handleRTCStatus(AsyncWebServerRequest *request) {
+#if RTC_ENABLED
+    request->send(200, "application/json", rtcManager.getStatusJson());
+#else
+    DynamicJsonDocument doc(128);
+    doc["enabled"] = false;
+    doc["available"] = false;
+    doc["error"] = "RTC not enabled in firmware";
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+#endif
+}
+
+void WebServerManager::handleRTCSync(AsyncWebServerRequest *request) {
+#if RTC_ENABLED
+    if (!rtcManager.isAvailable()) {
+        request->send(400, "application/json", "{\"success\":false,\"error\":\"RTC not available\"}");
+        return;
+    }
+
+    if (rtcManager.setTimeFromNTP()) {
+        DynamicJsonDocument doc(256);
+        doc["success"] = true;
+        doc["message"] = "RTC synchronized with NTP";
+        doc["formattedDateTime"] = rtcManager.getFormattedDateTime();
+        doc["epochTime"] = (unsigned long)rtcManager.getEpochTime();
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    } else {
+        request->send(500, "application/json", "{\"success\":false,\"error\":\"NTP sync failed\"}");
+    }
+#else
+    request->send(400, "application/json", "{\"error\":\"RTC not enabled in firmware\"}");
+#endif
+}
+
+void WebServerManager::handleRTCSetTime(AsyncWebServerRequest *request,
+                                         uint8_t *data, size_t len,
+                                         size_t index, size_t total) {
+    if (index + len != total) return;
+
+    DynamicJsonDocument doc(512);
+    DeserializationError error = deserializeJson(doc, data, len);
+
+    if (error) {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+
+#if RTC_ENABLED
+    if (!rtcManager.isAvailable()) {
+        request->send(400, "application/json", "{\"success\":false,\"error\":\"RTC not available\"}");
+        return;
+    }
+
+    // Option 1: Set from epoch time
+    if (doc.containsKey("epoch")) {
+        time_t epoch = doc["epoch"].as<unsigned long>();
+        if (rtcManager.setTimeFromEpoch(epoch)) {
+            DynamicJsonDocument respDoc(256);
+            respDoc["success"] = true;
+            respDoc["message"] = "Time set from epoch";
+            respDoc["formattedDateTime"] = rtcManager.getFormattedDateTime();
+
+            String response;
+            serializeJson(respDoc, response);
+            request->send(200, "application/json", response);
+        } else {
+            request->send(500, "application/json", "{\"success\":false,\"error\":\"Failed to set time\"}");
+        }
+        return;
+    }
+
+    // Option 2: Set from individual components
+    if (doc.containsKey("year") && doc.containsKey("month") && doc.containsKey("day") &&
+        doc.containsKey("hours") && doc.containsKey("minutes") && doc.containsKey("seconds")) {
+
+        RTCDateTime dt;
+        dt.year = doc["year"];
+        dt.month = doc["month"];
+        dt.day = doc["day"];
+        dt.hours = doc["hours"];
+        dt.minutes = doc["minutes"];
+        dt.seconds = doc["seconds"];
+        dt.dayOfWeek = RTCManager::calculateDayOfWeek(dt.year, dt.month, dt.day);
+
+        if (rtcManager.setDateTime(dt)) {
+            DynamicJsonDocument respDoc(256);
+            respDoc["success"] = true;
+            respDoc["message"] = "Time set successfully";
+            respDoc["formattedDateTime"] = rtcManager.getFormattedDateTime();
+
+            String response;
+            serializeJson(respDoc, response);
+            request->send(200, "application/json", response);
+        } else {
+            request->send(500, "application/json", "{\"success\":false,\"error\":\"Failed to set time\"}");
+        }
+        return;
+    }
+
+    request->send(400, "application/json", "{\"error\":\"Missing time parameters. Provide 'epoch' or year/month/day/hours/minutes/seconds\"}");
+#else
+    request->send(400, "application/json", "{\"error\":\"RTC not enabled in firmware\"}");
+#endif
+}
+
 void WebServerManager::handleRestart(AsyncWebServerRequest *request) {
     request->send(200, "application/json", "{\"success\":true,\"message\":\"Restarting...\"}");
     delay(500);
@@ -1250,4 +1678,172 @@ void WebServerManager::handleFileUpload(AsyncWebServerRequest *request, String f
         Serial.printf("[Files] Upload complete: %u bytes\n", index + len);
         uploadFile.close();
     }
+}
+
+// ==================== Network Manager Handlers ====================
+
+void WebServerManager::handleNetworkStatus(AsyncWebServerRequest *request) {
+    if (networkManager) {
+        String json = networkManager->getStatusJson();
+        request->send(200, "application/json", json);
+    } else {
+        request->send(503, "application/json", "{\"error\":\"Network Manager not available\"}");
+    }
+}
+
+void WebServerManager::handleNetworkConfig(AsyncWebServerRequest *request) {
+    if (!networkManager) {
+        request->send(503, "application/json", "{\"error\":\"Network Manager not available\"}");
+        return;
+    }
+
+    DynamicJsonDocument doc(1024);
+    NetworkManagerConfig& cfg = networkManager->getConfig();
+
+    doc["wifi_enabled"] = cfg.wifiEnabled;
+    doc["ethernet_enabled"] = cfg.ethernetEnabled;
+    doc["primary"] = cfg.primary == PrimaryInterface::WIFI ? "wifi" : "ethernet";
+    doc["failover_enabled"] = cfg.failoverEnabled;
+    doc["failover_timeout"] = cfg.failoverTimeout;
+    doc["reconnect_interval"] = cfg.reconnectInterval;
+
+    // Ethernet config
+    if (networkManager->getEthernet()) {
+        EthernetConfig& ethCfg = networkManager->getEthernet()->getConfig();
+        doc["ethernet"]["enabled"] = ethCfg.enabled;
+        doc["ethernet"]["dhcp"] = ethCfg.useDHCP;
+        doc["ethernet"]["static_ip"] = ethCfg.staticIP.toString();
+        doc["ethernet"]["gateway"] = ethCfg.gateway.toString();
+        doc["ethernet"]["subnet"] = ethCfg.subnet.toString();
+        doc["ethernet"]["dns"] = ethCfg.dns.toString();
+        doc["ethernet"]["dhcp_timeout"] = ethCfg.dhcpTimeout;
+    }
+
+    String output;
+    serializeJson(doc, output);
+    request->send(200, "application/json", output);
+}
+
+void WebServerManager::handleNetworkConfigPost(AsyncWebServerRequest *request, uint8_t *data,
+                                                size_t len, size_t index, size_t total) {
+    if (!networkManager) {
+        request->send(503, "application/json", "{\"error\":\"Network Manager not available\"}");
+        return;
+    }
+
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, data, len);
+
+    if (error) {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+
+    NetworkManagerConfig& cfg = networkManager->getConfig();
+
+    if (doc.containsKey("wifi_enabled")) {
+        cfg.wifiEnabled = doc["wifi_enabled"].as<bool>();
+    }
+    if (doc.containsKey("ethernet_enabled")) {
+        cfg.ethernetEnabled = doc["ethernet_enabled"].as<bool>();
+    }
+    if (doc.containsKey("primary")) {
+        String primary = doc["primary"].as<String>();
+        cfg.primary = (primary == "ethernet") ? PrimaryInterface::ETHERNET : PrimaryInterface::WIFI;
+    }
+    if (doc.containsKey("failover_enabled")) {
+        cfg.failoverEnabled = doc["failover_enabled"].as<bool>();
+    }
+    if (doc.containsKey("failover_timeout")) {
+        cfg.failoverTimeout = doc["failover_timeout"].as<uint32_t>();
+    }
+    if (doc.containsKey("reconnect_interval")) {
+        cfg.reconnectInterval = doc["reconnect_interval"].as<uint32_t>();
+    }
+
+    // Ethernet config
+    if (doc.containsKey("ethernet") && networkManager->getEthernet()) {
+        EthernetConfig& ethCfg = networkManager->getEthernet()->getConfig();
+        JsonObject eth = doc["ethernet"];
+
+        if (eth.containsKey("enabled")) {
+            ethCfg.enabled = eth["enabled"].as<bool>();
+        }
+        if (eth.containsKey("dhcp")) {
+            ethCfg.useDHCP = eth["dhcp"].as<bool>();
+        }
+        if (eth.containsKey("static_ip")) {
+            ethCfg.staticIP.fromString(eth["static_ip"].as<const char*>());
+        }
+        if (eth.containsKey("gateway")) {
+            ethCfg.gateway.fromString(eth["gateway"].as<const char*>());
+        }
+        if (eth.containsKey("subnet")) {
+            ethCfg.subnet.fromString(eth["subnet"].as<const char*>());
+        }
+        if (eth.containsKey("dns")) {
+            ethCfg.dns.fromString(eth["dns"].as<const char*>());
+        }
+        if (eth.containsKey("dhcp_timeout")) {
+            ethCfg.dhcpTimeout = eth["dhcp_timeout"].as<uint16_t>();
+        }
+    }
+
+    // Save configuration
+    if (networkManager->saveConfig()) {
+        request->send(200, "application/json", "{\"status\":\"ok\"}");
+    } else {
+        request->send(500, "application/json", "{\"error\":\"Failed to save config\"}");
+    }
+}
+
+void WebServerManager::handleNetworkForce(AsyncWebServerRequest *request, uint8_t *data,
+                                           size_t len, size_t index, size_t total) {
+    if (!networkManager) {
+        request->send(503, "application/json", "{\"error\":\"Network Manager not available\"}");
+        return;
+    }
+
+    DynamicJsonDocument doc(256);
+    DeserializationError error = deserializeJson(doc, data, len);
+
+    if (error) {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+
+    if (doc.containsKey("interface")) {
+        String iface = doc["interface"].as<String>();
+
+        if (iface == "auto") {
+            networkManager->setAutoMode();
+            request->send(200, "application/json", "{\"status\":\"ok\",\"mode\":\"auto\"}");
+        } else if (iface == "wifi") {
+            if (networkManager->forceInterface(NetworkType::WIFI)) {
+                request->send(200, "application/json", "{\"status\":\"ok\",\"interface\":\"wifi\"}");
+            } else {
+                request->send(400, "application/json", "{\"error\":\"WiFi not available\"}");
+            }
+        } else if (iface == "ethernet") {
+            if (networkManager->forceInterface(NetworkType::ETHERNET)) {
+                request->send(200, "application/json", "{\"status\":\"ok\",\"interface\":\"ethernet\"}");
+            } else {
+                request->send(400, "application/json", "{\"error\":\"Ethernet not available\"}");
+            }
+        } else {
+            request->send(400, "application/json", "{\"error\":\"Invalid interface\"}");
+        }
+    } else {
+        request->send(400, "application/json", "{\"error\":\"Missing interface parameter\"}");
+    }
+}
+
+void WebServerManager::handleNetworkReconnect(AsyncWebServerRequest *request) {
+    if (!networkManager) {
+        request->send(503, "application/json", "{\"error\":\"Network Manager not available\"}");
+        return;
+    }
+
+    networkManager->reconnect();
+    request->send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Reconnecting...\"}");
 }

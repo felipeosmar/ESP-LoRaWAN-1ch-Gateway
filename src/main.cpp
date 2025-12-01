@@ -32,6 +32,11 @@
 #include "oled_manager.h"
 #include "lcd_manager.h"
 #include "ntp_manager.h"
+#include "buzzer_manager.h"
+#include "gps_manager.h"
+#include "rtc_manager.h"
+#include "atmega_bridge.h"
+#include "network_manager.h"
 
 // WiFi network structure
 struct WiFiNetwork {
@@ -56,6 +61,15 @@ const unsigned long DISPLAY_UPDATE_INTERVAL = 1000;
 // Statistics update timing
 unsigned long lastStatsUpdate = 0;
 const unsigned long STATS_UPDATE_INTERVAL = 5000;
+
+// Keep-alive LED timing
+unsigned long lastLedBlink = 0;
+bool ledState = false;
+
+// ATmega Bridge and Network Manager instances
+#if ATMEGA_ENABLED
+ATmegaBridge atmegaBridge(Serial2, ATMEGA_RX_PIN, ATMEGA_TX_PIN);
+#endif
 
 // Function declarations
 void setupWiFi();
@@ -124,8 +138,75 @@ void setup() {
         }
     }
 
+    // Initialize buzzer
+    #if BUZZER_ENABLED
+    if (buzzer.begin()) {
+        Serial.println("[Main] Buzzer initialized");
+    }
+    #endif
+
+    // Initialize keep-alive LED
+    #if LED_DEBUG_ENABLED
+    pinMode(LED_DEBUG_PIN, OUTPUT);
+    digitalWrite(LED_DEBUG_PIN, LOW);
+    Serial.println("[Main] Keep-alive LED initialized on GPIO2");
+    #endif
+
+    // Initialize GPS
+    #if GPS_ENABLED
+    if (gpsManager.begin()) {
+        Serial.println("[Main] GPS module initialized");
+    }
+    #endif
+
+    // Initialize RTC (DS1307)
+    #if RTC_ENABLED
+    if (rtcManager.begin()) {
+        Serial.println("[Main] RTC DS1307 initialized");
+    }
+    #endif
+
+    // Initialize ATmega Bridge (for Ethernet W5500 and RTC via ATmega)
+    #if ATMEGA_ENABLED
+    Serial.println("[Main] Initializing ATmega Bridge...");
+    if (atmegaBridge.begin(ATMEGA_BAUD_RATE)) {
+        Serial.println("[Main] ATmega Bridge ready");
+
+        // Get ATmega version
+        uint8_t major, minor, patch;
+        if (atmegaBridge.getVersion(major, minor, patch)) {
+            Serial.printf("[Main] ATmega firmware: v%d.%d.%d\n", major, minor, patch);
+        }
+
+        // Create NetworkManager with bridge reference
+        networkManager = new NetworkManager(atmegaBridge);
+    } else {
+        Serial.println("[Main] ATmega Bridge not responding - Ethernet disabled");
+        // Create NetworkManager anyway but without functional Ethernet
+        networkManager = new NetworkManager(atmegaBridge);
+        networkManager->getConfig().ethernetEnabled = false;
+    }
+    #else
+    // ATmega disabled - create dummy bridge for NetworkManager
+    static ATmegaBridge dummyBridge(Serial2);
+    networkManager = new NetworkManager(dummyBridge);
+    networkManager->getConfig().ethernetEnabled = false;
+    #endif
+
     // Setup WiFi
     setupWiFi();
+
+    // Initialize NetworkManager (after WiFi is setup)
+    if (networkManager) {
+        Serial.println("[Main] Initializing Network Manager...");
+        if (networkManager->begin()) {
+            Serial.printf("[Main] Network Manager ready, active: %s\n",
+                         networkManager->getActiveInterface() ?
+                         networkManager->getActiveInterface()->getName() : "none");
+        } else {
+            Serial.println("[Main] Network Manager - no interfaces available");
+        }
+    }
 
     // Initialize LoRa gateway
     if (loraGateway.begin()) {
@@ -146,7 +227,11 @@ void setup() {
     }
 
     // Initialize UDP forwarder (only if connected to internet)
-    if (wifiConnectedToInternet) {
+    // Check both legacy WiFi connection and NetworkManager
+    bool hasNetwork = wifiConnectedToInternet ||
+                     (networkManager && networkManager->isConnected());
+
+    if (hasNetwork) {
         if (udpForwarder.begin()) {
             Serial.println("[Main] UDP forwarder initialized");
         } else {
@@ -185,6 +270,24 @@ void setup() {
                   wifiAPMode ? WiFi.softAPIP().toString().c_str()
                              : WiFi.localIP().toString().c_str());
     Serial.printf("  mDNS hostname: http://%s.local/\n", wifiHostname.c_str());
+
+    // Network Manager status
+    if (networkManager) {
+        Serial.println("  Network:");
+        Serial.printf("    Active: %s\n",
+                     networkManager->getActiveInterface() ?
+                     networkManager->getActiveInterface()->getName() : "none");
+        Serial.printf("    WiFi: %s\n",
+                     networkManager->getWiFi()->isConnected() ? "Connected" : "Disconnected");
+        #if ATMEGA_ENABLED
+        Serial.printf("    Ethernet: %s\n",
+                     networkManager->getEthernet()->isConnected() ? "Connected" :
+                     (networkManager->getEthernet()->isLinkUp() ? "Link Up" : "No Cable"));
+        #endif
+        Serial.printf("    Failover: %s\n",
+                     networkManager->getConfig().failoverEnabled ? "Enabled" : "Disabled");
+    }
+
     Serial.println("========================================");
     Serial.println();
 }
@@ -193,6 +296,40 @@ void loop() {
     // Update LoRa gateway (process interrupts)
     loraGateway.update();
 
+    // Update buzzer (for non-blocking beeps)
+    #if BUZZER_ENABLED
+    buzzer.update();
+    #endif
+
+    // Update GPS
+    #if GPS_ENABLED
+    gpsManager.update();
+    #endif
+
+    // Update Network Manager (handles WiFi/Ethernet failover)
+    if (networkManager) {
+        networkManager->update();
+    }
+
+    // Keep-alive LED blink
+    #if LED_DEBUG_ENABLED
+    unsigned long now = millis();
+    if (ledState) {
+        // LED is ON, check if it's time to turn it off
+        if (now - lastLedBlink >= LED_KEEPALIVE_ON_TIME) {
+            digitalWrite(LED_DEBUG_PIN, LOW);
+            ledState = false;
+        }
+    } else {
+        // LED is OFF, check if it's time to blink
+        if (now - lastLedBlink >= LED_KEEPALIVE_INTERVAL) {
+            digitalWrite(LED_DEBUG_PIN, HIGH);
+            ledState = true;
+            lastLedBlink = now;
+        }
+    }
+    #endif
+
     // Check for received packets
     while (loraGateway.hasPacket()) {
         LoRaPacket packet = loraGateway.getPacket();
@@ -200,6 +337,11 @@ void loop() {
         if (packet.valid) {
             Serial.printf("[Main] Packet received: %d bytes, RSSI: %.1f, SNR: %.1f\n",
                           packet.length, packet.rssi, packet.snr);
+
+            // Play packet received sound
+            #if BUZZER_ENABLED
+            buzzer.playPacketRx();
+            #endif
 
             // Show packet on display
             #if OLED_ENABLED
@@ -223,7 +365,9 @@ void loop() {
             }
 
             // Forward to network server
-            if (wifiConnectedToInternet && udpForwarder.isConnected()) {
+            bool networkAvailable = wifiConnectedToInternet ||
+                                   (networkManager && networkManager->isConnected());
+            if (networkAvailable && udpForwarder.isConnected()) {
                 if (udpForwarder.forwardPacket(packet)) {
                     GatewayStats& stats = loraGateway.getStats();
                     stats.rxPacketsForwarded++;
@@ -240,10 +384,17 @@ void loop() {
     }
 
     // Update UDP forwarder (send keep-alive, receive downlinks)
-    if (wifiConnectedToInternet) {
+    bool hasNetworkConnection = wifiConnectedToInternet ||
+                               (networkManager && networkManager->isConnected());
+    if (hasNetworkConnection) {
         udpForwarder.update();
         ntpManager.update();
     }
+
+    // Update RTC
+    #if RTC_ENABLED
+    rtcManager.update();
+    #endif
 
     // Update web server
     webServer.loop();
@@ -425,6 +576,16 @@ void setupWiFi() {
                 // Initialize NTP time synchronization
                 ntpManager.begin();
 
+                // Sync RTC with NTP time after connection
+                #if RTC_ENABLED
+                if (rtcManager.isAvailable() && rtcManager.getConfig().syncWithNTP) {
+                    delay(2000);  // Wait for NTP to sync
+                    if (rtcManager.setTimeFromNTP()) {
+                        Serial.println("[WiFi] RTC synchronized with NTP");
+                    }
+                }
+                #endif
+
                 // Initialize mDNS for .local domain resolution
                 if (MDNS.begin(wifiHostname.c_str())) {
                     MDNS.addService("http", "tcp", 80);
@@ -555,6 +716,20 @@ bool loadConfig() {
     // Load LCD configuration
     lcdManager.loadConfig(doc);
 
+    // Load buzzer configuration
+    buzzer.loadConfig(doc);
+
+    // Load GPS configuration
+    gpsManager.loadConfig(doc);
+
+    // Load RTC configuration
+    rtcManager.loadConfig(doc);
+
+    // Load Network Manager configuration
+    if (networkManager) {
+        networkManager->loadConfig(doc);
+    }
+
     Serial.println("[Config] Configuration loaded");
     return true;
 }
@@ -615,6 +790,33 @@ void setDefaultConfig() {
     doc["lcd"]["scl"] = LCD_SCL;
     doc["lcd"]["backlight"] = true;
     doc["lcd"]["rotation_interval"] = 5;
+
+    // RTC defaults
+    doc["rtc"]["enabled"] = RTC_ENABLED;
+    doc["rtc"]["i2cAddress"] = RTC_ADDRESS;
+    doc["rtc"]["sdaPin"] = RTC_SDA;
+    doc["rtc"]["sclPin"] = RTC_SCL;
+    doc["rtc"]["syncWithNTP"] = RTC_SYNC_WITH_NTP_DEFAULT;
+    doc["rtc"]["syncInterval"] = RTC_SYNC_INTERVAL_DEFAULT;
+    doc["rtc"]["squareWaveMode"] = 0;
+    doc["rtc"]["timezoneOffset"] = RTC_TIMEZONE_OFFSET_DEFAULT;
+
+    // Network Manager defaults
+    doc["network"]["wifi_enabled"] = NET_WIFI_ENABLED_DEFAULT;
+    doc["network"]["ethernet_enabled"] = NET_ETHERNET_ENABLED_DEFAULT;
+    doc["network"]["primary"] = NET_PRIMARY_WIFI_DEFAULT ? "wifi" : "ethernet";
+    doc["network"]["failover_enabled"] = NET_FAILOVER_ENABLED_DEFAULT;
+    doc["network"]["failover_timeout"] = NET_FAILOVER_TIMEOUT_DEFAULT;
+    doc["network"]["reconnect_interval"] = NET_RECONNECT_INTERVAL_DEFAULT;
+
+    // Ethernet defaults
+    doc["network"]["ethernet"]["enabled"] = true;
+    doc["network"]["ethernet"]["dhcp"] = ETH_DHCP_DEFAULT;
+    doc["network"]["ethernet"]["static_ip"] = ETH_STATIC_IP_DEFAULT;
+    doc["network"]["ethernet"]["gateway"] = ETH_GATEWAY_DEFAULT;
+    doc["network"]["ethernet"]["subnet"] = ETH_SUBNET_DEFAULT;
+    doc["network"]["ethernet"]["dns"] = ETH_DNS_DEFAULT;
+    doc["network"]["ethernet"]["dhcp_timeout"] = ETH_DHCP_TIMEOUT_DEFAULT;
 
     // Save default config
     File file = LittleFS.open("/config.json", "w");

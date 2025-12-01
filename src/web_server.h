@@ -50,9 +50,33 @@ private:
     void handleLCDConfig(AsyncWebServerRequest *request);
     void handleLCDConfigPost(AsyncWebServerRequest *request, uint8_t *data,
                               size_t len, size_t index, size_t total);
+    void handleBuzzerConfig(AsyncWebServerRequest *request);
+    void handleBuzzerConfigPost(AsyncWebServerRequest *request, uint8_t *data,
+                                 size_t len, size_t index, size_t total);
+    void handleBuzzerTest(AsyncWebServerRequest *request, uint8_t *data,
+                           size_t len, size_t index, size_t total);
+    void handleGPSConfig(AsyncWebServerRequest *request);
+    void handleGPSConfigPost(AsyncWebServerRequest *request, uint8_t *data,
+                              size_t len, size_t index, size_t total);
+    void handleRTCConfig(AsyncWebServerRequest *request);
+    void handleRTCConfigPost(AsyncWebServerRequest *request, uint8_t *data,
+                              size_t len, size_t index, size_t total);
+    void handleRTCStatus(AsyncWebServerRequest *request);
+    void handleRTCSync(AsyncWebServerRequest *request);
+    void handleRTCSetTime(AsyncWebServerRequest *request, uint8_t *data,
+                           size_t len, size_t index, size_t total);
     void handleStats(AsyncWebServerRequest *request);
     void handleResetStats(AsyncWebServerRequest *request);
     void handleRestart(AsyncWebServerRequest *request);
+
+    // Network Manager handlers
+    void handleNetworkStatus(AsyncWebServerRequest *request);
+    void handleNetworkConfig(AsyncWebServerRequest *request);
+    void handleNetworkConfigPost(AsyncWebServerRequest *request, uint8_t *data,
+                                  size_t len, size_t index, size_t total);
+    void handleNetworkForce(AsyncWebServerRequest *request, uint8_t *data,
+                             size_t len, size_t index, size_t total);
+    void handleNetworkReconnect(AsyncWebServerRequest *request);
 
     // File Manager handlers
     void handleFileList(AsyncWebServerRequest *request);

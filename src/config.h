@@ -106,6 +106,125 @@
 #define VEXT_PIN -1
 #endif
 
+// Buzzer Configuration (GPIO26 on JVTECH v4.1)
+#ifndef BUZZER_PIN
+#define BUZZER_PIN 26
+#endif
+
+#ifndef BUZZER_ENABLED
+#define BUZZER_ENABLED 1
+#endif
+
+// Debug LED Configuration (GPIO2 - built-in LED on most ESP32 boards)
+#ifndef LED_DEBUG_PIN
+#define LED_DEBUG_PIN 2
+#endif
+
+#ifndef LED_DEBUG_ENABLED
+#define LED_DEBUG_ENABLED 1
+#endif
+
+#define LED_KEEPALIVE_INTERVAL 3000  // Blink every 3 seconds
+#define LED_KEEPALIVE_ON_TIME  50    // LED on for 50ms
+
+// GPS Configuration
+#ifndef GPS_ENABLED
+#define GPS_ENABLED 1
+#endif
+
+#ifndef GPS_RX_PIN
+#define GPS_RX_PIN 16  // ESP32 RX from GPS TX
+#endif
+
+#ifndef GPS_TX_PIN
+#define GPS_TX_PIN 17  // ESP32 TX to GPS RX
+#endif
+
+#ifndef GPS_BAUD_RATE
+#define GPS_BAUD_RATE 9600
+#endif
+
+// GPS Power Control (GND via transistor on GPIO13 - HIGH to enable)
+#ifndef GPS_ENABLE_PIN
+#define GPS_ENABLE_PIN 13
+#endif
+
+// GPS Reset Pin (GPIO15 active LOW)
+#ifndef GPS_RESET_PIN
+#define GPS_RESET_PIN 15
+#endif
+
+// GPS defaults
+#define GPS_ENABLED_DEFAULT     true
+#define GPS_USE_FIXED_DEFAULT   false
+#define GPS_LATITUDE_DEFAULT    0.0
+#define GPS_LONGITUDE_DEFAULT   0.0
+#define GPS_ALTITUDE_DEFAULT    0
+#define GPS_UPDATE_INTERVAL     1000  // 1 second
+
+// RTC DS1307 Configuration
+#ifndef RTC_ENABLED
+#define RTC_ENABLED 1
+#endif
+
+#ifndef RTC_ADDRESS
+#define RTC_ADDRESS 0x68  // DS1307 default I2C address
+#endif
+
+#ifndef RTC_SDA
+#define RTC_SDA 21        // Same as LCD (shared I2C bus)
+#endif
+
+#ifndef RTC_SCL
+#define RTC_SCL 22        // Same as LCD (shared I2C bus)
+#endif
+
+// RTC defaults
+#define RTC_SYNC_WITH_NTP_DEFAULT   true
+#define RTC_SYNC_INTERVAL_DEFAULT   3600     // 1 hour in seconds
+#define RTC_TIMEZONE_OFFSET_DEFAULT -3       // BRT (Brasilia Time)
+
+// =============================================================================
+// ATmega Bridge Configuration
+// =============================================================================
+
+// ATmega Bridge UART pins (ESP32 <-> ATmega328P)
+#ifndef ATMEGA_RX_PIN
+#define ATMEGA_RX_PIN 3   // ESP32 RX from ATmega TX
+#endif
+
+#ifndef ATMEGA_TX_PIN
+#define ATMEGA_TX_PIN 1   // ESP32 TX to ATmega RX
+#endif
+
+#ifndef ATMEGA_BAUD_RATE
+#define ATMEGA_BAUD_RATE 115200
+#endif
+
+#ifndef ATMEGA_ENABLED
+#define ATMEGA_ENABLED 1
+#endif
+
+// =============================================================================
+// Network Manager Configuration
+// =============================================================================
+
+// Network defaults
+#define NET_WIFI_ENABLED_DEFAULT        true
+#define NET_ETHERNET_ENABLED_DEFAULT    true
+#define NET_PRIMARY_WIFI_DEFAULT        true     // true = WiFi primary, false = Ethernet primary
+#define NET_FAILOVER_ENABLED_DEFAULT    true
+#define NET_FAILOVER_TIMEOUT_DEFAULT    30000    // 30 seconds
+#define NET_RECONNECT_INTERVAL_DEFAULT  10000    // 10 seconds
+
+// Ethernet defaults (via ATmega)
+#define ETH_DHCP_DEFAULT               true
+#define ETH_DHCP_TIMEOUT_DEFAULT       10000    // 10 seconds
+#define ETH_STATIC_IP_DEFAULT          "192.168.1.100"
+#define ETH_GATEWAY_DEFAULT            "192.168.1.1"
+#define ETH_SUBNET_DEFAULT             "255.255.255.0"
+#define ETH_DNS_DEFAULT                "8.8.8.8"
+
 // Semtech UDP Protocol versions
 #define PROTOCOL_VERSION 2
 

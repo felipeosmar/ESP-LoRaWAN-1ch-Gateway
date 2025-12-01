@@ -1,17 +1,8 @@
 {
   "wifi": {
     "hostname": "LoRaGateway",
-    "ap_mode": false,
-    "networks": [
-      {
-        "ssid": "Escalador",
-        "password": "Escalador@123"
-      },
-      {
-        "ssid": "FIESC-IOT",
-        "password": "urb@1983"
-      }
-    ]
+    "ap_mode": true,
+    "networks": []
   },
   "lora": {
     "enabled": true,
@@ -35,7 +26,7 @@
     "host": "10.1.82.18",
     "port_up": 1700,
     "port_down": 1700,
-    "gateway_eui": "24dcc3fffecb9a34",
+    "gateway_eui": "24DCC3FFFECB9A34",
     "description": "JVTech ESP32 1ch Gateway LoRa",
     "region": "US915",
     "latitude": -26.26381,
@@ -49,5 +40,45 @@
     "timezone_offset": -10800,
     "daylight_offset": 0,
     "sync_interval": 3600000
+  },
+  "buzzer": {
+    "enabled": false,
+    "startup_sound": true,
+    "packet_rx_sound": true,
+    "packet_tx_sound": false,
+    "volume": 75
+  },
+  "gps": {
+    "enabled": true,
+    "use_fixed": false,
+    "rx_pin": 26,
+    "tx_pin": 27,
+    "enable_pin": 13,
+    "reset_pin": 15,
+    "baud_rate": 9600,
+    "latitude": 0,
+    "longitude": 0,
+    "altitude": 0,
+    "update_interval": 1000
+  },
+  "rtc": {
+    "enabled": true,
+    "i2cAddress": 104,
+    "sdaPin": 21,
+    "sclPin": 22,
+    "syncWithNTP": true,
+    "syncInterval": 3600,
+    "squareWaveMode": 0,
+    "timezoneOffset": -3
+  },
+  "lcd": {
+    "enabled": true,
+    "address": 39,
+    "cols": 16,
+    "rows": 2,
+    "sda": 21,
+    "scl": 22,
+    "backlight": true,
+    "rotation_interval": 5
   }
 }

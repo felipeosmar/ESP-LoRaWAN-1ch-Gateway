@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 #include "config.h"
 #include "lora_gateway.h"
+#include "network_manager.h"
 
 // LoRaWAN Region IDs
 #define REGION_EU868    "EU868"
@@ -71,12 +72,15 @@ public:
     String getGatewayEuiString();
 
 private:
-    WiFiUDP udp;
+    // Nota: UDP agora eh gerenciado pelo NetworkManager
+    // WiFiUDP udp; // REMOVIDO - usar networkManager->udpXXX()
     ForwarderConfig config;
     ForwarderStats stats;
 
     bool connected;
     uint16_t tokenCounter;
+    bool useNetworkManager;  // Flag para usar NetworkManager ao inves de WiFiUDP direto
+    WiFiUDP legacyUdp;       // Fallback se NetworkManager nao disponivel
 
     // Timing
     unsigned long lastStatTime;

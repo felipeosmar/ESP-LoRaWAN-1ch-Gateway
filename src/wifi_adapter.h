@@ -15,6 +15,18 @@
 #include <WiFiUdp.h>
 
 /**
+ * @struct WiFiConfig
+ * @brief Configuracao da interface WiFi (similar a EthernetConfig)
+ */
+struct WiFiConfig {
+    bool useDHCP;
+    IPAddress staticIP;
+    IPAddress gateway;
+    IPAddress subnet;
+    IPAddress dns;
+};
+
+/**
  * @class WiFiAdapter
  * @brief Implementacao de NetworkInterface usando WiFi ESP32
  */
@@ -58,8 +70,29 @@ public:
     // ================== DNS ==================
     bool hostByName(const char* host, IPAddress& result) override;
 
+    // ================== Configuracao ==================
+
+    /**
+     * @brief Obter configuracao atual
+     * @return Referencia para configuracao
+     */
+    WiFiConfig& getConfig() { return _config; }
+
+    /**
+     * @brief Aplicar configuracao de IP estatico
+     * Deve ser chamado antes de conectar ao WiFi
+     */
+    void applyStaticIPConfig();
+
+    /**
+     * @brief Obter endereco MAC como string
+     * @return String com MAC address
+     */
+    String getMacAddress();
+
 private:
     WiFiUDP _udp;
+    WiFiConfig _config;
     NetworkStatus _status;
     uint32_t _connectedTime;
     bool _udpStarted;

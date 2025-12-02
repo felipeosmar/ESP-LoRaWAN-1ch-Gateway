@@ -71,6 +71,7 @@ private:
 
     // Network Manager handlers
     void handleNetworkStatus(AsyncWebServerRequest *request);
+    void handleNetworkHealth(AsyncWebServerRequest *request);
     void handleNetworkConfig(AsyncWebServerRequest *request);
     void handleNetworkConfigPost(AsyncWebServerRequest *request, uint8_t *data,
                                   size_t len, size_t index, size_t total);

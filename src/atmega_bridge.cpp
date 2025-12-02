@@ -328,6 +328,42 @@ uint16_t ATmegaBridge::udpAvailable() {
     return 0;
 }
 
+// ================== DNS ==================
+
+bool ATmegaBridge::dnsResolve(const char* hostname, IPAddress& result) {
+    if (!hostname || strlen(hostname) == 0) {
+        _lastError = RSP_INVALID_PARAM;
+        return false;
+    }
+
+    // Check hostname length (DNS label limit is 63 chars)
+    size_t hostnameLen = strlen(hostname);
+    if (hostnameLen > DNS_MAX_HOSTNAME) {
+        _lastError = RSP_INVALID_PARAM;
+        return false;
+    }
+
+    // Send hostname as null-terminated string
+    uint8_t response[4];
+    uint16_t respLen = 4;
+
+    // Use longer timeout for DNS (5 seconds + protocol overhead)
+    uint16_t oldTimeout = _timeout;
+    _timeout = DNS_TIMEOUT_MS + 1000;
+
+    bool success = sendCommand(CMD_DNS_RESOLVE, (const uint8_t*)hostname,
+                               hostnameLen + 1, response, respLen);
+
+    _timeout = oldTimeout;
+
+    if (success && respLen >= 4) {
+        result = IPAddress(response[0], response[1], response[2], response[3]);
+        return true;
+    }
+
+    return false;
+}
+
 // ================== RTC ==================
 
 bool ATmegaBridge::rtcGetDateTime(DateTime& dt) {

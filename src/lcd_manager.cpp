@@ -1,4 +1,5 @@
 #include "lcd_manager.h"
+#include "network_manager.h"
 #include <WiFi.h>
 #include <LittleFS.h>
 
@@ -8,7 +9,9 @@ LCDManager lcdManager;
 LCDManager::LCDManager()
     : lcd(nullptr)
     , available(false)
+    , _networkManager(nullptr)
     , currentMode(MODE_LOGO)
+    , previousMode(MODE_STATUS)
     , lastUpdate(0)
     , modeStartTime(0) {
 
@@ -23,6 +26,8 @@ LCDManager::LCDManager()
     config.rotationInterval = 5;  // 5 seconds default
 
     memset(&displayData, 0, sizeof(displayData));
+    memset(failoverFromIface, 0, sizeof(failoverFromIface));
+    memset(failoverToIface, 0, sizeof(failoverToIface));
 }
 
 bool LCDManager::begin() {
@@ -81,23 +86,82 @@ void LCDManager::showStatus(const char* gatewayEui, bool serverConnected, bool l
 
     lcd->clear();
 
-    // Line 1: Server and LoRa status
-    lcd->setCursor(0, 0);
-    lcd->print("Srv:");
-    lcd->print(serverConnected ? "OK" : "--");
-    lcd->print(" LoRa:");
-    lcd->print(loraActive ? "OK" : "--");
+    // Line 1: Gateway title with network indicator and time
+    // Format: "LORA GW  E 12:34" or "LORA GW  W 12:34"
+    char line1[17];
+    char indicator = getNetworkIndicator();
 
-    // Line 2: Gateway EUI (last 8 chars)
+    // Get current time (simplified - just use uptime hours:minutes)
+    unsigned long uptime = millis() / 1000;
+    uint8_t hours = (uptime / 3600) % 24;
+    uint8_t minutes = (uptime % 3600) / 60;
+
+    snprintf(line1, sizeof(line1), "LORA GW  %c %02d:%02d", indicator, hours, minutes);
+    lcd->setCursor(0, 0);
+    lcd->print(line1);
+
+    // Line 2: Server and LoRa status
     lcd->setCursor(0, 1);
-    lcd->print("EUI:");
-    // Show last 8 characters of EUI for readability
-    int len = strlen(gatewayEui);
-    if (len > 8) {
-        lcd->print(gatewayEui + len - 8);
-    } else {
-        lcd->print(gatewayEui);
+    char line2[17];
+    snprintf(line2, sizeof(line2), "S:%s L:%s",
+             serverConnected ? "OK" : "--",
+             loraActive ? "OK" : "--");
+    lcd->print(line2);
+}
+
+void LCDManager::showStatusWithNetwork(const char* gatewayEui, bool serverConnected, bool loraActive,
+                                        char networkIndicator, uint8_t hours, uint8_t minutes) {
+    if (!available) return;
+
+    currentMode = MODE_STATUS;
+    strlcpy(displayData.gatewayEui, gatewayEui, sizeof(displayData.gatewayEui));
+    displayData.serverConnected = serverConnected;
+    displayData.loraActive = loraActive;
+
+    lcd->clear();
+
+    // Line 1: Gateway title with network indicator and time
+    // Format: "LORA GW  E 12:34" or "LORA GW  W 12:34"
+    char line1[17];
+    snprintf(line1, sizeof(line1), "LORA GW  %c %02d:%02d", networkIndicator, hours, minutes);
+    lcd->setCursor(0, 0);
+    lcd->print(line1);
+
+    // Line 2: Server and LoRa status
+    lcd->setCursor(0, 1);
+    char line2[17];
+    snprintf(line2, sizeof(line2), "S:%s L:%s",
+             serverConnected ? "OK" : "--",
+             loraActive ? "OK" : "--");
+    lcd->print(line2);
+}
+
+void LCDManager::showFailoverNotification(const char* fromIface, const char* toIface) {
+    if (!available) return;
+
+    // Save current mode to return to after notification
+    if (currentMode != MODE_FAILOVER_NOTIFICATION) {
+        previousMode = currentMode;
     }
+
+    currentMode = MODE_FAILOVER_NOTIFICATION;
+    modeStartTime = millis();
+
+    // Store interface names
+    strlcpy(failoverFromIface, fromIface, sizeof(failoverFromIface));
+    strlcpy(failoverToIface, toIface, sizeof(failoverToIface));
+
+    lcd->clear();
+
+    // Line 1: "NET FAILOVER"
+    printCentered(0, "NET FAILOVER");
+
+    // Line 2: "WiFi -> Eth" or "Eth -> WiFi"
+    char line2[17];
+    snprintf(line2, sizeof(line2), "%s->%s", fromIface, toIface);
+    printCentered(1, line2);
+
+    Serial.printf("[LCD] Failover notification: %s -> %s\n", fromIface, toIface);
 }
 
 void LCDManager::showPacketInfo(int rssi, float snr, int size, uint32_t freq) {
@@ -200,6 +264,17 @@ void LCDManager::showError(const char* message) {
 void LCDManager::update() {
     if (!available) return;
 
+    // Auto-return from failover notification after 2 seconds
+    if (currentMode == MODE_FAILOVER_NOTIFICATION) {
+        if (millis() - modeStartTime > LCD_FAILOVER_NOTIFICATION_DURATION_MS) {
+            // Return to previous mode
+            showStatus(displayData.gatewayEui,
+                       displayData.serverConnected,
+                       displayData.loraActive);
+        }
+        return;  // Don't process other mode timeouts during notification
+    }
+
     // Auto-return from packet info after 3 seconds
     if (currentMode == MODE_PACKET) {
         if (millis() - modeStartTime > 3000) {
@@ -216,6 +291,23 @@ void LCDManager::update() {
                        displayData.serverConnected,
                        displayData.loraActive);
         }
+    }
+}
+
+char LCDManager::getNetworkIndicator() {
+    if (!_networkManager) {
+        return '-';
+    }
+
+    NetworkType activeType = _networkManager->getActiveType();
+
+    switch (activeType) {
+        case NetworkType::ETHERNET:
+            return 'E';
+        case NetworkType::WIFI:
+            return 'W';
+        default:
+            return '-';
     }
 }
 

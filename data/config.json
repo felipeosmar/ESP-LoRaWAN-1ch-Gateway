@@ -1,9 +1,4 @@
 {
-  "wifi": {
-    "hostname": "LoRaGateway",
-    "ap_mode": true,
-    "networks": []
-  },
   "lora": {
     "enabled": true,
     "frequency": 915200000,
@@ -34,7 +29,7 @@
     "altitude": 19
   },
   "ntp": {
-    "enabled": true,
+    "enabled": false,
     "server1": "pool.ntp.org",
     "server2": "time.google.com",
     "timezone_offset": -10800,
@@ -49,7 +44,7 @@
     "volume": 75
   },
   "gps": {
-    "enabled": true,
+    "enabled": false,
     "use_fixed": false,
     "rx_pin": 26,
     "tx_pin": 27,
@@ -62,7 +57,7 @@
     "update_interval": 1000
   },
   "rtc": {
-    "enabled": true,
+    "enabled": false,
     "i2cAddress": 104,
     "sdaPin": 21,
     "sclPin": 22,
@@ -80,5 +75,31 @@
     "scl": 22,
     "backlight": true,
     "rotation_interval": 5
+  },
+  "network": {
+    "wifi_enabled": true,
+    "ethernet_enabled": true,
+    "primary": "ethernet",
+    "failover_enabled": true,
+    "failover_timeout": 30000,
+    "reconnect_interval": 10000,
+    "health_check_enabled": true,
+    "stability_period": 60000,
+    "ethernet": {
+      "enabled": true,
+      "dhcp": true,
+      "static_ip": "0.0.0.0",
+      "gateway": "0.0.0.0",
+      "subnet": "255.255.255.0",
+      "dns": "8.8.8.8",
+      "dhcp_timeout": 10000
+    },
+    "wifi": {
+      "dhcp": true,
+      "static_ip": "0.0.0.0",
+      "gateway": "0.0.0.0",
+      "subnet": "255.255.255.0",
+      "dns": "8.8.8.8"
+    }
   }
 }

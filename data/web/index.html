@@ -278,6 +278,7 @@
 
             <!-- Network Tab -->
             <section id="network" class="tab-content">
+                <!-- Network Status Overview -->
                 <div class="card">
                     <h2>Network Status</h2>
                     <div class="info-grid">
@@ -300,50 +301,88 @@
                     </div>
                 </div>
 
+                <!-- Health Check Status - NEW -->
                 <div class="card">
-                    <h2>WiFi Status</h2>
+                    <h2>Connection Health</h2>
                     <div class="info-grid">
                         <div class="info-item">
-                            <label>Status</label>
-                            <span id="net-wifi-status">--</span>
+                            <label>Health Status</label>
+                            <span id="net-health-status">--</span>
                         </div>
                         <div class="info-item">
-                            <label>SSID</label>
-                            <span id="net-wifi-ssid">--</span>
+                            <label>Last ACK</label>
+                            <span id="net-last-ack">--</span>
                         </div>
                         <div class="info-item">
-                            <label>RSSI</label>
-                            <span id="net-wifi-rssi">--</span>
+                            <label>Failover State</label>
+                            <span id="net-failover-state">--</span>
                         </div>
                         <div class="info-item">
-                            <label>IP</label>
-                            <span id="net-wifi-ip">--</span>
+                            <label>Stability Timer</label>
+                            <span id="net-stability-timer">--</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="loadNetworkHealth()">Refresh Health</button>
+                </div>
+
+                <!-- Interface Status Side-by-Side -->
+                <div class="interface-status-grid">
+                    <!-- WiFi Status Card -->
+                    <div class="card">
+                        <h2>WiFi Status</h2>
+                        <div class="interface-indicator" id="wifi-indicator">
+                            <span class="interface-icon">W</span>
+                            <span class="interface-label" id="wifi-active-label">Standby</span>
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Status</label>
+                                <span id="net-wifi-status">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>SSID</label>
+                                <span id="net-wifi-ssid">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>RSSI</label>
+                                <span id="net-wifi-rssi">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>IP</label>
+                                <span id="net-wifi-ip">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ethernet Status Card -->
+                    <div class="card">
+                        <h2>Ethernet Status</h2>
+                        <div class="interface-indicator" id="eth-indicator">
+                            <span class="interface-icon">E</span>
+                            <span class="interface-label" id="eth-active-label">Standby</span>
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Status</label>
+                                <span id="net-eth-status">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Link</label>
+                                <span id="net-eth-link">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>IP</label>
+                                <span id="net-eth-ip">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>MAC</label>
+                                <span id="net-eth-mac">--</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <h2>Ethernet Status (via ATmega)</h2>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <label>Status</label>
-                            <span id="net-eth-status">--</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Link</label>
-                            <span id="net-eth-link">--</span>
-                        </div>
-                        <div class="info-item">
-                            <label>IP</label>
-                            <span id="net-eth-ip">--</span>
-                        </div>
-                        <div class="info-item">
-                            <label>MAC</label>
-                            <span id="net-eth-mac">--</span>
-                        </div>
-                    </div>
-                </div>
-
+                <!-- Network Statistics -->
                 <div class="card">
                     <h2>Network Statistics</h2>
                     <div class="stats-grid">
@@ -367,80 +406,125 @@
                     <button class="btn btn-secondary" onclick="loadNetworkStatus()">Refresh</button>
                 </div>
 
+                <!-- Manual Interface Override - ENHANCED -->
                 <div class="card">
-                    <h2>Network Configuration</h2>
-                    <form id="network-form">
-                        <div class="form-group">
-                            <label>WiFi Enabled</label>
-                            <input type="checkbox" id="net-wifi-enabled" checked>
+                    <h2>Manual Interface Control</h2>
+                    <div class="info-grid" style="margin-bottom: 15px;">
+                        <div class="info-item">
+                            <label>Current Mode</label>
+                            <span id="net-override-mode">Auto</span>
                         </div>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" id="btn-auto" onclick="forceInterface('auto')">Auto Mode</button>
+                        <button type="button" class="btn btn-secondary" id="btn-wifi" onclick="forceInterface('wifi')">Force WiFi</button>
+                        <button type="button" class="btn btn-secondary" id="btn-ethernet" onclick="forceInterface('ethernet')">Force Ethernet</button>
+                        <button type="button" class="btn btn-warning" onclick="networkReconnect()">Reconnect</button>
+                    </div>
+                    <p style="color: #888; margin-top: 10px; font-size: 0.9em;">Force interface disables automatic failover until Auto Mode is selected.</p>
+                </div>
+
+                <!-- Failover Configuration - ENHANCED -->
+                <div class="card">
+                    <h2>Failover Configuration</h2>
+                    <form id="failover-form">
                         <div class="form-group">
-                            <label>Ethernet Enabled</label>
-                            <input type="checkbox" id="net-eth-enabled">
-                        </div>
-                        <div class="form-group">
-                            <label>Primary Interface</label>
-                            <select id="net-primary">
+                            <label for="net-primary">Primary Interface</label>
+                            <select id="net-primary" aria-describedby="net-primary-help">
                                 <option value="wifi">WiFi</option>
                                 <option value="ethernet">Ethernet</option>
                             </select>
-                            <small style="color: #888; display: block; margin-top: 4px;">Interface used when both are available</small>
+                            <small id="net-primary-help" style="color: #888; display: block; margin-top: 4px;">Interface used when both are available</small>
                         </div>
                         <div class="form-group">
-                            <label>Failover Enabled</label>
-                            <input type="checkbox" id="net-failover-enabled" checked>
-                            <small style="color: #888; display: block; margin-top: 4px;">Auto-switch to secondary if primary fails</small>
+                            <label for="net-failover-enabled">Failover Enabled</label>
+                            <input type="checkbox" id="net-failover-enabled" checked aria-describedby="net-failover-help">
+                            <small id="net-failover-help" style="color: #888; display: block; margin-top: 4px;">Auto-switch to secondary if primary fails health check</small>
                         </div>
                         <div class="form-group">
-                            <label>Failover Timeout (ms)</label>
-                            <input type="number" id="net-failover-timeout" value="30000" min="5000" max="120000" step="1000">
+                            <label for="net-failover-timeout">Failover Timeout (ms)</label>
+                            <input type="number" id="net-failover-timeout" value="30000" min="5000" max="120000" step="1000" aria-describedby="net-timeout-help">
+                            <small id="net-timeout-help" style="color: #888; display: block; margin-top: 4px;">Time without ACK before triggering failover (5-120 seconds)</small>
                         </div>
                         <div class="form-group">
-                            <label>Reconnect Interval (ms)</label>
+                            <label for="net-stability-period">Stability Period (ms)</label>
+                            <input type="number" id="net-stability-period" value="60000" min="10000" max="300000" step="1000" aria-describedby="net-stability-help">
+                            <small id="net-stability-help" style="color: #888; display: block; margin-top: 4px;">Time primary must be healthy before switching back (10-300 seconds)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="net-reconnect-interval">Reconnect Interval (ms)</label>
                             <input type="number" id="net-reconnect-interval" value="10000" min="1000" max="60000" step="1000">
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Network Interface Configuration -->
+                <div class="card">
+                    <h2>Interface Configuration</h2>
+                    <form id="network-form">
+                        <div class="form-group">
+                            <label for="net-wifi-enabled">WiFi Enabled</label>
+                            <input type="checkbox" id="net-wifi-enabled" checked>
+                        </div>
+                        <div class="form-group">
+                            <label for="net-eth-enabled">Ethernet Enabled</label>
+                            <input type="checkbox" id="net-eth-enabled">
                         </div>
 
                         <hr style="border-color: #444; margin: 20px 0;">
-                        <h3 style="margin-bottom: 15px;">Ethernet Configuration</h3>
+                        <h3 style="margin-bottom: 15px;">WiFi IP Configuration</h3>
 
                         <div class="form-group">
-                            <label>Use DHCP</label>
+                            <label for="net-wifi-dhcp">Use DHCP</label>
+                            <input type="checkbox" id="net-wifi-dhcp" checked>
+                        </div>
+                        <div class="form-group">
+                            <label for="net-wifi-static-ip">Static IP</label>
+                            <input type="text" id="net-wifi-static-ip" placeholder="192.168.1.100" pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                        </div>
+                        <div class="form-group">
+                            <label for="net-wifi-gateway">Gateway</label>
+                            <input type="text" id="net-wifi-gateway" placeholder="192.168.1.1" pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                        </div>
+                        <div class="form-group">
+                            <label for="net-wifi-subnet">Subnet Mask</label>
+                            <input type="text" id="net-wifi-subnet" placeholder="255.255.255.0" pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                        </div>
+                        <div class="form-group">
+                            <label for="net-wifi-dns">DNS Server</label>
+                            <input type="text" id="net-wifi-dns" placeholder="8.8.8.8" pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                        </div>
+
+                        <hr style="border-color: #444; margin: 20px 0;">
+                        <h3 style="margin-bottom: 15px;">Ethernet IP Configuration</h3>
+
+                        <div class="form-group">
+                            <label for="net-eth-dhcp">Use DHCP</label>
                             <input type="checkbox" id="net-eth-dhcp" checked>
                         </div>
                         <div class="form-group">
-                            <label>Static IP</label>
-                            <input type="text" id="net-eth-static-ip" placeholder="192.168.1.100">
+                            <label for="net-eth-static-ip">Static IP</label>
+                            <input type="text" id="net-eth-static-ip" placeholder="192.168.1.100" pattern="^(\d{1,3}\.){3}\d{1,3}$">
                         </div>
                         <div class="form-group">
-                            <label>Gateway</label>
-                            <input type="text" id="net-eth-gateway" placeholder="192.168.1.1">
+                            <label for="net-eth-gateway">Gateway</label>
+                            <input type="text" id="net-eth-gateway" placeholder="192.168.1.1" pattern="^(\d{1,3}\.){3}\d{1,3}$">
                         </div>
                         <div class="form-group">
-                            <label>Subnet Mask</label>
-                            <input type="text" id="net-eth-subnet" placeholder="255.255.255.0">
+                            <label for="net-eth-subnet">Subnet Mask</label>
+                            <input type="text" id="net-eth-subnet" placeholder="255.255.255.0" pattern="^(\d{1,3}\.){3}\d{1,3}$">
                         </div>
                         <div class="form-group">
-                            <label>DNS Server</label>
-                            <input type="text" id="net-eth-dns" placeholder="8.8.8.8">
+                            <label for="net-eth-dns">DNS Server</label>
+                            <input type="text" id="net-eth-dns" placeholder="8.8.8.8" pattern="^(\d{1,3}\.){3}\d{1,3}$">
                         </div>
                         <div class="form-group">
-                            <label>DHCP Timeout (ms)</label>
+                            <label for="net-eth-dhcp-timeout">DHCP Timeout (ms)</label>
                             <input type="number" id="net-eth-dhcp-timeout" value="10000" min="5000" max="60000" step="1000">
                         </div>
 
                         <button type="submit" class="btn btn-primary">Save Configuration</button>
                     </form>
-                </div>
-
-                <div class="card">
-                    <h2>Manual Control</h2>
-                    <div class="btn-group" style="margin-top: 15px;">
-                        <button type="button" class="btn btn-secondary" onclick="forceInterface('auto')">Auto Mode</button>
-                        <button type="button" class="btn btn-secondary" onclick="forceInterface('wifi')">Force WiFi</button>
-                        <button type="button" class="btn btn-secondary" onclick="forceInterface('ethernet')">Force Ethernet</button>
-                        <button type="button" class="btn btn-warning" onclick="networkReconnect()">Reconnect</button>
-                    </div>
-                    <p style="color: #888; margin-top: 10px; font-size: 0.9em;">Force interface disables automatic failover until Auto Mode is selected.</p>
                 </div>
             </section>
 

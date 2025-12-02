@@ -223,6 +223,10 @@ void WebServerManager::setupRoutes() {
         handleNetworkStatus(request);
     });
 
+    server.on("/api/network/health", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        handleNetworkHealth(request);
+    });
+
     server.on("/api/network/config", HTTP_GET, [this](AsyncWebServerRequest *request) {
         handleNetworkConfig(request);
     });
@@ -1691,13 +1695,22 @@ void WebServerManager::handleNetworkStatus(AsyncWebServerRequest *request) {
     }
 }
 
+void WebServerManager::handleNetworkHealth(AsyncWebServerRequest *request) {
+    if (networkManager) {
+        String json = networkManager->getHealthJson();
+        request->send(200, "application/json", json);
+    } else {
+        request->send(503, "application/json", "{\"error\":\"Network Manager not available\"}");
+    }
+}
+
 void WebServerManager::handleNetworkConfig(AsyncWebServerRequest *request) {
     if (!networkManager) {
         request->send(503, "application/json", "{\"error\":\"Network Manager not available\"}");
         return;
     }
 
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(1536);
     NetworkManagerConfig& cfg = networkManager->getConfig();
 
     doc["wifi_enabled"] = cfg.wifiEnabled;
@@ -1706,17 +1719,31 @@ void WebServerManager::handleNetworkConfig(AsyncWebServerRequest *request) {
     doc["failover_enabled"] = cfg.failoverEnabled;
     doc["failover_timeout"] = cfg.failoverTimeout;
     doc["reconnect_interval"] = cfg.reconnectInterval;
+    doc["health_check_enabled"] = cfg.healthCheckEnabled;
+    doc["stability_period"] = cfg.stabilityPeriod;
 
     // Ethernet config
     if (networkManager->getEthernet()) {
         EthernetConfig& ethCfg = networkManager->getEthernet()->getConfig();
-        doc["ethernet"]["enabled"] = ethCfg.enabled;
-        doc["ethernet"]["dhcp"] = ethCfg.useDHCP;
-        doc["ethernet"]["static_ip"] = ethCfg.staticIP.toString();
-        doc["ethernet"]["gateway"] = ethCfg.gateway.toString();
-        doc["ethernet"]["subnet"] = ethCfg.subnet.toString();
-        doc["ethernet"]["dns"] = ethCfg.dns.toString();
-        doc["ethernet"]["dhcp_timeout"] = ethCfg.dhcpTimeout;
+        JsonObject eth = doc.createNestedObject("ethernet");
+        eth["enabled"] = ethCfg.enabled;
+        eth["dhcp"] = ethCfg.useDHCP;
+        eth["static_ip"] = ethCfg.staticIP.toString();
+        eth["gateway"] = ethCfg.gateway.toString();
+        eth["subnet"] = ethCfg.subnet.toString();
+        eth["dns"] = ethCfg.dns.toString();
+        eth["dhcp_timeout"] = ethCfg.dhcpTimeout;
+    }
+
+    // WiFi config (static IP settings)
+    if (networkManager->getWiFi()) {
+        WiFiConfig& wifiCfg = networkManager->getWiFi()->getConfig();
+        JsonObject wifi = doc.createNestedObject("wifi");
+        wifi["dhcp"] = wifiCfg.useDHCP;
+        wifi["static_ip"] = wifiCfg.staticIP.toString();
+        wifi["gateway"] = wifiCfg.gateway.toString();
+        wifi["subnet"] = wifiCfg.subnet.toString();
+        wifi["dns"] = wifiCfg.dns.toString();
     }
 
     String output;
@@ -1731,7 +1758,7 @@ void WebServerManager::handleNetworkConfigPost(AsyncWebServerRequest *request, u
         return;
     }
 
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(1536);
     DeserializationError error = deserializeJson(doc, data, len);
 
     if (error) {
@@ -1760,6 +1787,12 @@ void WebServerManager::handleNetworkConfigPost(AsyncWebServerRequest *request, u
     if (doc.containsKey("reconnect_interval")) {
         cfg.reconnectInterval = doc["reconnect_interval"].as<uint32_t>();
     }
+    if (doc.containsKey("health_check_enabled")) {
+        cfg.healthCheckEnabled = doc["health_check_enabled"].as<bool>();
+    }
+    if (doc.containsKey("stability_period")) {
+        cfg.stabilityPeriod = doc["stability_period"].as<uint32_t>();
+    }
 
     // Ethernet config
     if (doc.containsKey("ethernet") && networkManager->getEthernet()) {
@@ -1786,6 +1819,33 @@ void WebServerManager::handleNetworkConfigPost(AsyncWebServerRequest *request, u
         }
         if (eth.containsKey("dhcp_timeout")) {
             ethCfg.dhcpTimeout = eth["dhcp_timeout"].as<uint16_t>();
+        }
+    }
+
+    // WiFi config (static IP settings)
+    if (doc.containsKey("wifi") && networkManager->getWiFi()) {
+        WiFiConfig& wifiCfg = networkManager->getWiFi()->getConfig();
+        JsonObject wifi = doc["wifi"];
+
+        if (wifi.containsKey("dhcp")) {
+            wifiCfg.useDHCP = wifi["dhcp"].as<bool>();
+        }
+        if (wifi.containsKey("static_ip")) {
+            wifiCfg.staticIP.fromString(wifi["static_ip"].as<const char*>());
+        }
+        if (wifi.containsKey("gateway")) {
+            wifiCfg.gateway.fromString(wifi["gateway"].as<const char*>());
+        }
+        if (wifi.containsKey("subnet")) {
+            wifiCfg.subnet.fromString(wifi["subnet"].as<const char*>());
+        }
+        if (wifi.containsKey("dns")) {
+            wifiCfg.dns.fromString(wifi["dns"].as<const char*>());
+        }
+
+        // Apply WiFi static IP configuration if DHCP is disabled
+        if (!wifiCfg.useDHCP) {
+            networkManager->getWiFi()->applyStaticIPConfig();
         }
     }
 

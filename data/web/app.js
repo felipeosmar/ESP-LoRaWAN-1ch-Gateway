@@ -2,6 +2,7 @@
 
 let ws = null;
 let statusInterval = null;
+let healthInterval = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,6 +14,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start periodic status updates
     statusInterval = setInterval(loadStatus, 5000);
+
+    // Start health status updates when on network tab
+    healthInterval = setInterval(() => {
+        const networkTab = document.getElementById('network');
+        if (networkTab && networkTab.classList.contains('active')) {
+            loadNetworkHealth();
+            loadNetworkStatus();
+        }
+    }, 3000);
 });
 
 // Tab navigation
@@ -32,6 +42,13 @@ function initTabs() {
             // Load files when Files tab is activated
             if (tab.dataset.tab === 'files') {
                 refreshFiles();
+            }
+
+            // Load network data when Network tab is activated
+            if (tab.dataset.tab === 'network') {
+                loadNetworkConfig();
+                loadNetworkStatus();
+                loadNetworkHealth();
             }
         });
     });
@@ -103,6 +120,57 @@ function initForms() {
     document.getElementById('network-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         await saveNetworkConfig();
+    });
+
+    // Failover form (if separate)
+    const failoverForm = document.getElementById('failover-form');
+    if (failoverForm) {
+        failoverForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await saveFailoverConfig();
+        });
+    }
+
+    // WiFi DHCP toggle to show/hide static IP fields
+    const wifiDhcpCheckbox = document.getElementById('net-wifi-dhcp');
+    if (wifiDhcpCheckbox) {
+        wifiDhcpCheckbox.addEventListener('change', toggleWifiStaticFields);
+        toggleWifiStaticFields();
+    }
+
+    // Ethernet DHCP toggle
+    const ethDhcpCheckbox = document.getElementById('net-eth-dhcp');
+    if (ethDhcpCheckbox) {
+        ethDhcpCheckbox.addEventListener('change', toggleEthStaticFields);
+        toggleEthStaticFields();
+    }
+}
+
+// Toggle WiFi static IP fields based on DHCP setting
+function toggleWifiStaticFields() {
+    const useDhcp = document.getElementById('net-wifi-dhcp').checked;
+    const staticFields = ['net-wifi-static-ip', 'net-wifi-gateway', 'net-wifi-subnet', 'net-wifi-dns'];
+
+    staticFields.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+            field.disabled = useDhcp;
+            field.style.opacity = useDhcp ? '0.5' : '1';
+        }
+    });
+}
+
+// Toggle Ethernet static IP fields based on DHCP setting
+function toggleEthStaticFields() {
+    const useDhcp = document.getElementById('net-eth-dhcp').checked;
+    const staticFields = ['net-eth-static-ip', 'net-eth-gateway', 'net-eth-subnet', 'net-eth-dns'];
+
+    staticFields.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+            field.disabled = useDhcp;
+            field.style.opacity = useDhcp ? '0.5' : '1';
+        }
     });
 }
 
@@ -608,8 +676,8 @@ async function loadGPSConfig() {
         document.getElementById('gps-hdop').textContent = data.hdop ? data.hdop.toFixed(2) : '--';
 
         // Update position display
-        document.getElementById('gps-latitude').textContent = data.latitude ? data.latitude.toFixed(6) + '°' : '--';
-        document.getElementById('gps-longitude').textContent = data.longitude ? data.longitude.toFixed(6) + '°' : '--';
+        document.getElementById('gps-latitude').textContent = data.latitude ? data.latitude.toFixed(6) + '\u00B0' : '--';
+        document.getElementById('gps-longitude').textContent = data.longitude ? data.longitude.toFixed(6) + '\u00B0' : '--';
         document.getElementById('gps-altitude').textContent = data.altitude ? data.altitude + ' m' : '--';
         document.getElementById('gps-speed').textContent = data.speed ? data.speed.toFixed(1) + ' km/h' : '--';
 
@@ -856,7 +924,7 @@ async function scanWiFi() {
         if (data.networks && data.networks.length > 0) {
             resultsDiv.innerHTML = data.networks.map(network => `
                 <div class="wifi-network" onclick="selectNetwork('${network.ssid}')">
-                    <span>${network.ssid} ${network.encryption ? '🔒' : ''}</span>
+                    <span>${network.ssid} ${network.encryption ? '\uD83D\uDD12' : ''}</span>
                     <span>${network.rssi} dBm</span>
                 </div>
             `).join('');
@@ -1308,26 +1376,67 @@ async function loadNetworkConfig() {
             return;
         }
 
-        // Update form fields
+        // Update form fields - Interface enable/disable
         document.getElementById('net-wifi-enabled').checked = data.wifi_enabled;
         document.getElementById('net-eth-enabled').checked = data.ethernet_enabled;
+
+        // Failover configuration
         document.getElementById('net-primary').value = data.primary || 'wifi';
         document.getElementById('net-failover-enabled').checked = data.failover_enabled;
         document.getElementById('net-failover-timeout').value = data.failover_timeout || 30000;
         document.getElementById('net-reconnect-interval').value = data.reconnect_interval || 10000;
 
+        // Stability period (new field)
+        const stabilityField = document.getElementById('net-stability-period');
+        if (stabilityField) {
+            stabilityField.value = data.stability_period || 60000;
+        }
+
+        // WiFi config (including new static IP fields)
+        if (data.wifi) {
+            const wifiDhcp = document.getElementById('net-wifi-dhcp');
+            if (wifiDhcp) {
+                wifiDhcp.checked = data.wifi.dhcp !== false;
+            }
+
+            const wifiStaticIp = document.getElementById('net-wifi-static-ip');
+            if (wifiStaticIp) {
+                wifiStaticIp.value = data.wifi.static_ip || '';
+            }
+
+            const wifiGateway = document.getElementById('net-wifi-gateway');
+            if (wifiGateway) {
+                wifiGateway.value = data.wifi.gateway || '';
+            }
+
+            const wifiSubnet = document.getElementById('net-wifi-subnet');
+            if (wifiSubnet) {
+                wifiSubnet.value = data.wifi.subnet || '';
+            }
+
+            const wifiDns = document.getElementById('net-wifi-dns');
+            if (wifiDns) {
+                wifiDns.value = data.wifi.dns || '';
+            }
+
+            toggleWifiStaticFields();
+        }
+
         // Ethernet config
         if (data.ethernet) {
-            document.getElementById('net-eth-dhcp').checked = data.ethernet.dhcp;
+            document.getElementById('net-eth-dhcp').checked = data.ethernet.dhcp !== false;
             document.getElementById('net-eth-static-ip').value = data.ethernet.static_ip || '';
             document.getElementById('net-eth-gateway').value = data.ethernet.gateway || '';
             document.getElementById('net-eth-subnet').value = data.ethernet.subnet || '';
             document.getElementById('net-eth-dns').value = data.ethernet.dns || '';
             document.getElementById('net-eth-dhcp-timeout').value = data.ethernet.dhcp_timeout || 10000;
+
+            toggleEthStaticFields();
         }
 
-        // Load status
+        // Load status and health
         await loadNetworkStatus();
+        await loadNetworkHealth();
     } catch (error) {
         console.error('Failed to load Network config:', error);
     }
@@ -1344,11 +1453,25 @@ async function loadNetworkStatus() {
         }
 
         // Active interface info
-        document.getElementById('net-active-interface').textContent = data.activeInterface || 'None';
+        const activeInterface = data.activeInterface || 'None';
+        document.getElementById('net-active-interface').textContent = activeInterface;
         document.getElementById('net-active-interface').className = data.connected ? 'status-ok' : 'status-warn';
-        document.getElementById('net-mode').textContent = data.manualMode ? 'Manual' : 'Auto';
+
+        // Mode display
+        let modeText = 'Auto';
+        if (data.manualMode) {
+            modeText = 'Manual (' + (data.forcedInterface || 'Unknown') + ')';
+        }
+        document.getElementById('net-mode').textContent = modeText;
         document.getElementById('net-ip').textContent = data.ip || '--';
         document.getElementById('net-gateway').textContent = data.gateway || '--';
+
+        // Update override mode display
+        updateOverrideModeDisplay(data.manualMode ? data.forcedInterface : 'auto');
+
+        // Update interface indicators
+        updateInterfaceIndicator('wifi', activeInterface === 'WiFi', data.wifi?.connected);
+        updateInterfaceIndicator('eth', activeInterface === 'Ethernet', data.ethernet?.connected);
 
         // WiFi status
         if (data.wifi) {
@@ -1383,15 +1506,152 @@ async function loadNetworkStatus() {
 
             // Calculate active uptime
             let uptime = 0;
-            if (data.activeInterface === 'WiFi') {
+            if (activeInterface === 'WiFi') {
                 uptime = data.stats.totalUptimeWifi || 0;
-            } else if (data.activeInterface === 'Ethernet') {
+            } else if (activeInterface === 'Ethernet') {
                 uptime = data.stats.totalUptimeEthernet || 0;
             }
             document.getElementById('net-uptime').textContent = formatUptime(Math.floor(uptime / 1000));
         }
     } catch (error) {
         console.error('Failed to load Network status:', error);
+    }
+}
+
+/**
+ * Load and display health check status
+ */
+async function loadNetworkHealth() {
+    try {
+        const response = await fetch('/api/network/health');
+        const data = await response.json();
+
+        if (data.error) {
+            // Health endpoint may not exist in older firmware
+            document.getElementById('net-health-status').textContent = 'N/A';
+            return;
+        }
+
+        // Health status
+        const healthStatusEl = document.getElementById('net-health-status');
+        if (data.healthy) {
+            healthStatusEl.textContent = 'Healthy';
+            healthStatusEl.className = 'healthy';
+        } else {
+            healthStatusEl.textContent = 'Unhealthy';
+            healthStatusEl.className = 'unhealthy';
+        }
+
+        // Last ACK time
+        const lastAckEl = document.getElementById('net-last-ack');
+        if (data.lastAckTime !== undefined) {
+            if (data.lastAckTime === 0) {
+                lastAckEl.textContent = 'Never';
+            } else {
+                const agoMs = Date.now() - data.lastAckTime;
+                lastAckEl.textContent = formatUptime(Math.floor(agoMs / 1000)) + ' ago';
+            }
+        } else if (data.lastAckAgo !== undefined) {
+            lastAckEl.textContent = formatUptime(Math.floor(data.lastAckAgo / 1000)) + ' ago';
+        } else {
+            lastAckEl.textContent = '--';
+        }
+
+        // Failover state
+        const failoverStateEl = document.getElementById('net-failover-state');
+        if (data.failoverActive) {
+            failoverStateEl.textContent = 'Active (on backup)';
+            failoverStateEl.className = 'status-warn';
+        } else {
+            failoverStateEl.textContent = 'Inactive';
+            failoverStateEl.className = 'status-ok';
+        }
+
+        // Stability timer countdown
+        const stabilityTimerEl = document.getElementById('net-stability-timer');
+        if (data.failoverActive && data.primaryStableFor !== undefined) {
+            const stabilityPeriod = data.stabilityPeriod || 60000;
+            const remaining = Math.max(0, stabilityPeriod - data.primaryStableFor);
+            if (remaining > 0) {
+                stabilityTimerEl.textContent = formatUptime(Math.ceil(remaining / 1000)) + ' remaining';
+                stabilityTimerEl.className = 'status-warn';
+            } else {
+                stabilityTimerEl.textContent = 'Ready to switch back';
+                stabilityTimerEl.className = 'status-ok';
+            }
+        } else {
+            stabilityTimerEl.textContent = '--';
+            stabilityTimerEl.className = '';
+        }
+
+    } catch (error) {
+        console.error('Failed to load Network health:', error);
+        // Set defaults for missing endpoint
+        document.getElementById('net-health-status').textContent = 'Unknown';
+        document.getElementById('net-last-ack').textContent = '--';
+        document.getElementById('net-failover-state').textContent = '--';
+        document.getElementById('net-stability-timer').textContent = '--';
+    }
+}
+
+/**
+ * Update interface indicator visual state
+ */
+function updateInterfaceIndicator(type, isActive, isConnected) {
+    const indicatorId = type === 'wifi' ? 'wifi-indicator' : 'eth-indicator';
+    const labelId = type === 'wifi' ? 'wifi-active-label' : 'eth-active-label';
+
+    const indicator = document.getElementById(indicatorId);
+    const label = document.getElementById(labelId);
+
+    if (!indicator || !label) return;
+
+    // Remove all state classes
+    indicator.classList.remove('active', 'standby', 'error');
+
+    if (isActive) {
+        indicator.classList.add('active');
+        label.textContent = 'Active';
+    } else if (isConnected) {
+        indicator.classList.add('standby');
+        label.textContent = 'Standby';
+    } else {
+        indicator.classList.add('error');
+        label.textContent = 'Offline';
+    }
+}
+
+/**
+ * Update the override mode button states
+ */
+function updateOverrideModeDisplay(currentMode) {
+    const modeSpan = document.getElementById('net-override-mode');
+    const btnAuto = document.getElementById('btn-auto');
+    const btnWifi = document.getElementById('btn-wifi');
+    const btnEthernet = document.getElementById('btn-ethernet');
+
+    // Update mode display text
+    if (currentMode === 'auto') {
+        modeSpan.textContent = 'Auto';
+    } else if (currentMode === 'wifi') {
+        modeSpan.textContent = 'Forced WiFi';
+    } else if (currentMode === 'ethernet') {
+        modeSpan.textContent = 'Forced Ethernet';
+    } else {
+        modeSpan.textContent = currentMode || 'Auto';
+    }
+
+    // Update button active states
+    [btnAuto, btnWifi, btnEthernet].forEach(btn => {
+        if (btn) btn.classList.remove('btn-active');
+    });
+
+    if (currentMode === 'wifi' && btnWifi) {
+        btnWifi.classList.add('btn-active');
+    } else if (currentMode === 'ethernet' && btnEthernet) {
+        btnEthernet.classList.add('btn-active');
+    } else if (btnAuto) {
+        btnAuto.classList.add('btn-active');
     }
 }
 
@@ -1403,6 +1663,14 @@ async function saveNetworkConfig() {
         failover_enabled: document.getElementById('net-failover-enabled').checked,
         failover_timeout: parseInt(document.getElementById('net-failover-timeout').value),
         reconnect_interval: parseInt(document.getElementById('net-reconnect-interval').value),
+        stability_period: parseInt(document.getElementById('net-stability-period')?.value || 60000),
+        wifi: {
+            dhcp: document.getElementById('net-wifi-dhcp')?.checked !== false,
+            static_ip: document.getElementById('net-wifi-static-ip')?.value || '',
+            gateway: document.getElementById('net-wifi-gateway')?.value || '',
+            subnet: document.getElementById('net-wifi-subnet')?.value || '',
+            dns: document.getElementById('net-wifi-dns')?.value || ''
+        },
         ethernet: {
             dhcp: document.getElementById('net-eth-dhcp').checked,
             static_ip: document.getElementById('net-eth-static-ip').value,
@@ -1434,6 +1702,42 @@ async function saveNetworkConfig() {
     }
 }
 
+/**
+ * Save failover-specific configuration
+ */
+async function saveFailoverConfig() {
+    const config = {
+        primary: document.getElementById('net-primary').value,
+        failover_enabled: document.getElementById('net-failover-enabled').checked,
+        failover_timeout: parseInt(document.getElementById('net-failover-timeout').value),
+        stability_period: parseInt(document.getElementById('net-stability-period')?.value || 60000),
+        reconnect_interval: parseInt(document.getElementById('net-reconnect-interval').value)
+    };
+
+    try {
+        const response = await fetch('/api/network/failover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await response.json();
+
+        if (result.status === 'ok') {
+            alert('Failover configuration saved');
+            addLog('Failover config saved');
+            loadNetworkConfig();
+        } else {
+            alert('Failed to save: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to save failover configuration');
+        console.error(error);
+    }
+}
+
+/**
+ * Force interface selection (auto/wifi/ethernet)
+ */
 async function forceInterface(iface) {
     try {
         const response = await fetch('/api/network/force', {
@@ -1449,6 +1753,11 @@ async function forceInterface(iface) {
             } else {
                 addLog('Network: Forced to ' + iface);
             }
+
+            // Update button states immediately
+            updateOverrideModeDisplay(iface);
+
+            // Reload status after a short delay
             setTimeout(loadNetworkStatus, 1000);
         } else {
             alert('Failed: ' + (result.error || 'Unknown error'));

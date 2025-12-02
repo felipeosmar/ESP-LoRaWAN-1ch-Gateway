@@ -212,10 +212,12 @@
 // Network defaults
 #define NET_WIFI_ENABLED_DEFAULT        true
 #define NET_ETHERNET_ENABLED_DEFAULT    true
-#define NET_PRIMARY_WIFI_DEFAULT        true     // true = WiFi primary, false = Ethernet primary
+#define NET_PRIMARY_WIFI_DEFAULT        false    // false = Ethernet primary (default), true = WiFi primary
 #define NET_FAILOVER_ENABLED_DEFAULT    true
 #define NET_FAILOVER_TIMEOUT_DEFAULT    30000    // 30 seconds
 #define NET_RECONNECT_INTERVAL_DEFAULT  10000    // 10 seconds
+#define NET_HEALTH_CHECK_ENABLED_DEFAULT true    // Use ChirpStack ACK-based health check
+#define NET_STABILITY_PERIOD_DEFAULT    60000    // 60 seconds stability before return-to-primary
 
 // Ethernet defaults (via ATmega)
 #define ETH_DHCP_DEFAULT               true

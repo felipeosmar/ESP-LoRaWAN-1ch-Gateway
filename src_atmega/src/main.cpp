@@ -82,6 +82,9 @@ static bool ethInitialized = false;
 static uint8_t udpSocket = 0;  // Socket usado para UDP
 static bool udpSocketOpen = false;
 
+// DNS server IP (obtained from network config)
+static uint8_t dnsServerIP[4] = {8, 8, 8, 8};  // Default: Google DNS
+
 // ============================================================
 // Prototipos
 // ============================================================
@@ -100,6 +103,11 @@ bool readRTC(DateTime* dt);
 bool writeRTC(const DateTime* dt);
 uint16_t getFreeRAM();
 
+// DNS functions
+bool dnsResolve(const char* hostname, uint8_t* resultIP);
+uint16_t buildDnsQuery(uint8_t* buffer, const char* hostname, uint16_t transactionId);
+bool parseDnsResponse(const uint8_t* response, uint16_t length, uint16_t expectedTxId, uint8_t* resultIP);
+
 // ============================================================
 // Setup
 // ============================================================
@@ -114,23 +122,37 @@ void setup() {
 
     // Inicializar Serial para comunicacao com ESP32
     Serial.begin(SERIAL_BAUD);
+    delay(100);  // Aguardar Serial estabilizar
+
+    DBG_INFO("ATmega328P Bridge v%d.%d.%d starting...",
+             FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH);
 
     // Inicializar I2C
     Wire.begin();
     Wire.setClock(100000);  // 100kHz
+    DBG_INFO("I2C initialized at 100kHz");
 
     // Verificar RTC
     initRTC();
+    if (rtcInitialized) {
+        DBG_INFO("RTC DS1307 found at 0x%02X", RTC_ADDRESS);
+    } else {
+        DBG_WARN("RTC DS1307 not found");
+    }
 
     // Inicializar SPI
     SPI.begin();
     SPI.setClockDivider(SPI_CLOCK_DIV4);  // 4MHz para W5500
     SPI.setDataMode(SPI_MODE0);
     SPI.setBitOrder(MSBFIRST);
+    DBG_INFO("SPI initialized at 4MHz");
 
     // Inicializar W5500 (verificar se presente)
     if (w5500.begin()) {
         ethInitialized = true;
+        DBG_INFO("W5500 initialized, link=%s", w5500.getLinkStatus() ? "UP" : "DOWN");
+    } else {
+        DBG_ERROR("W5500 not found or init failed!");
     }
 
     // LED de indicacao de inicializacao
@@ -141,6 +163,7 @@ void setup() {
         delay(100);
     }
 
+    DBG_INFO("Setup complete. Free RAM: %u bytes", getFreeRAM());
     lastSecondMillis = millis();
 }
 
@@ -238,6 +261,8 @@ void processPacket(const uint8_t* data, uint16_t length) {
     uint16_t dataLength = (data[2] << 8) | data[3];
     const uint8_t* payload = &data[PROTO_HEADER_SIZE];
 
+    DBG_VERBOSE("RX cmd=0x%02X len=%u", cmd, dataLength);
+
     // LED para indicar atividade
     digitalWrite(LED_DEBUG_PIN, HIGH);
 
@@ -251,7 +276,7 @@ void processPacket(const uint8_t* data, uint16_t length) {
         // Comandos SPI raw para W5500 (acesso direto)
         handleSPICommand(cmd, payload, dataLength);
     } else if (cmd >= 0x20 && cmd <= 0x2F) {
-        // Comandos UDP
+        // Comandos UDP (inclui CMD_DNS_RESOLVE = 0x25)
         handleUDPCommand(cmd, payload, dataLength);
     } else if (cmd >= 0x30 && cmd <= 0x3F) {
         // Comandos TCP
@@ -261,6 +286,7 @@ void processPacket(const uint8_t* data, uint16_t length) {
     } else if (cmd >= 0x50 && cmd <= 0x5F) {
         handleI2CCommand(cmd, payload, dataLength);
     } else {
+        DBG_WARN("Unknown cmd 0x%02X", cmd);
         sendResponse(cmd, RSP_INVALID_CMD, nullptr, 0);
     }
 
@@ -357,11 +383,14 @@ void handleSystemCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
 void handleEthernetCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
     switch (cmd) {
         case CMD_ETH_INIT: {
+            DBG_INFO("ETH_INIT len=%u", length);
             // Inicializar com IP estatico se dados fornecidos
             if (!ethInitialized) {
                 if (w5500.begin()) {
                     ethInitialized = true;
+                    DBG_INFO("W5500 initialized OK");
                 } else {
+                    DBG_ERROR("W5500 init failed");
                     sendResponse(cmd, RSP_ERROR, nullptr, 0);
                     break;
                 }
@@ -373,7 +402,11 @@ void handleEthernetCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 w5500.setIP(config->ip);
                 w5500.setGateway(config->gateway);
                 w5500.setSubnet(config->subnet);
-                // DNS nao eh configurado no W5500, mas podemos ignorar
+                // Store DNS server for DNS resolution
+                memcpy(dnsServerIP, config->dns, 4);
+                DBG_INFO("IP=%d.%d.%d.%d GW=%d.%d.%d.%d",
+                         config->ip[0], config->ip[1], config->ip[2], config->ip[3],
+                         config->gateway[0], config->gateway[1], config->gateway[2], config->gateway[3]);
             }
 
             sendResponse(cmd, RSP_OK, nullptr, 0);
@@ -420,7 +453,7 @@ void handleEthernetCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
             w5500.getIP(config.ip);
             w5500.getGateway(config.gateway);
             w5500.getSubnet(config.subnet);
-            memset(config.dns, 0, 4);  // DNS nao armazenado no W5500
+            memcpy(config.dns, dnsServerIP, 4);  // Return stored DNS
             sendResponse(cmd, RSP_OK, (uint8_t*)&config, sizeof(config));
             break;
         }
@@ -435,6 +468,8 @@ void handleEthernetCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 w5500.setIP(config->ip);
                 w5500.setGateway(config->gateway);
                 w5500.setSubnet(config->subnet);
+                // Store DNS server for DNS resolution
+                memcpy(dnsServerIP, config->dns, 4);
                 sendResponse(cmd, RSP_OK, nullptr, 0);
             } else {
                 sendResponse(cmd, RSP_INVALID_PARAM, nullptr, 0);
@@ -458,22 +493,26 @@ void handleEthernetCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
 }
 
 // ============================================================
-// UDP Handlers
+// UDP Handlers (includes DNS resolution)
 // ============================================================
 
 void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
     switch (cmd) {
         case CMD_UDP_BEGIN: {
             if (!ethInitialized) {
+                DBG_WARN("UDP_BEGIN: ETH not init");
                 sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
                 break;
             }
             if (length >= 2) {
                 uint16_t port = ((uint16_t)data[0] << 8) | data[1];
+                DBG_INFO("UDP_BEGIN port=%u", port);
                 if (w5500.socketOpenUDP(udpSocket, port)) {
                     udpSocketOpen = true;
+                    DBG_INFO("UDP socket %u opened", udpSocket);
                     sendResponse(cmd, RSP_OK, nullptr, 0);
                 } else {
+                    DBG_ERROR("UDP socket open failed");
                     sendResponse(cmd, RSP_ERROR, nullptr, 0);
                 }
             } else {
@@ -486,6 +525,7 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
             if (udpSocketOpen) {
                 w5500.socketClose(udpSocket);
                 udpSocketOpen = false;
+                DBG_INFO("UDP socket closed");
             }
             sendResponse(cmd, RSP_OK, nullptr, 0);
             break;
@@ -493,10 +533,12 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
 
         case CMD_UDP_SEND: {
             if (!ethInitialized) {
+                DBG_WARN("UDP_SEND: ETH not init");
                 sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
                 break;
             }
             if (!udpSocketOpen) {
+                DBG_WARN("UDP_SEND: socket not open");
                 sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
                 break;
             }
@@ -505,12 +547,18 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 const uint8_t* payload = data + sizeof(NetAddress);
                 uint16_t payloadLen = length - sizeof(NetAddress);
 
+                DBG_VERBOSE("UDP_SEND to %d.%d.%d.%d:%u len=%u",
+                           addr->ip[0], addr->ip[1], addr->ip[2], addr->ip[3],
+                           addr->port, payloadLen);
+
                 uint16_t sent = w5500.udpSend(udpSocket, addr->ip, addr->port,
                                               payload, payloadLen);
                 if (sent > 0) {
+                    DBG_VERBOSE("UDP sent %u bytes", sent);
                     uint8_t response[2] = {(uint8_t)(sent >> 8), (uint8_t)(sent & 0xFF)};
                     sendResponse(cmd, RSP_OK, response, 2);
                 } else {
+                    DBG_ERROR("UDP send failed");
                     sendResponse(cmd, RSP_ERROR, nullptr, 0);
                 }
             } else {
@@ -535,6 +583,8 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 break;
             }
 
+            DBG_VERBOSE("UDP_RECV available=%u", available);
+
             // Buffer para resposta: [NetAddress][dados]
             uint8_t response[PROTO_MAX_DATA_SIZE];
             NetAddress* srcAddr = (NetAddress*)response;
@@ -544,6 +594,9 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
             uint16_t received = w5500.udpReceive(udpSocket, srcAddr->ip, &srcAddr->port,
                                                  recvData, maxData);
             if (received > 0) {
+                DBG_VERBOSE("UDP recv %u bytes from %d.%d.%d.%d:%u",
+                           received, srcAddr->ip[0], srcAddr->ip[1],
+                           srcAddr->ip[2], srcAddr->ip[3], srcAddr->port);
                 sendResponse(cmd, RSP_OK, response, sizeof(NetAddress) + received);
             } else {
                 sendResponse(cmd, RSP_NO_DATA, nullptr, 0);
@@ -563,9 +616,264 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
             break;
         }
 
+        case CMD_DNS_RESOLVE: {
+            // DNS resolution command
+            if (!ethInitialized) {
+                DBG_WARN("DNS: ETH not init");
+                sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
+                break;
+            }
+            if (!w5500.getLinkStatus()) {
+                DBG_WARN("DNS: No link");
+                sendResponse(cmd, RSP_NO_LINK, nullptr, 0);
+                break;
+            }
+            if (length == 0 || length > DNS_MAX_HOSTNAME + 1) {
+                sendResponse(cmd, RSP_INVALID_PARAM, nullptr, 0);
+                break;
+            }
+
+            // Ensure hostname is null-terminated
+            char hostname[DNS_MAX_HOSTNAME + 1];
+            uint16_t hostnameLen = (length < DNS_MAX_HOSTNAME) ? length : DNS_MAX_HOSTNAME;
+            memcpy(hostname, data, hostnameLen);
+            hostname[hostnameLen] = '\0';
+
+            // Remove trailing null if present in data
+            size_t actualLen = strlen(hostname);
+            if (actualLen == 0) {
+                sendResponse(cmd, RSP_INVALID_PARAM, nullptr, 0);
+                break;
+            }
+
+            DBG_INFO("DNS resolve: %s", hostname);
+
+            // Perform DNS resolution
+            uint8_t resultIP[4];
+            if (dnsResolve(hostname, resultIP)) {
+                DBG_INFO("DNS OK: %d.%d.%d.%d", resultIP[0], resultIP[1], resultIP[2], resultIP[3]);
+                sendResponse(cmd, RSP_OK, resultIP, 4);
+            } else {
+                DBG_ERROR("DNS failed for %s", hostname);
+                sendResponse(cmd, RSP_ERROR, nullptr, 0);
+            }
+            break;
+        }
+
         default:
             sendResponse(cmd, RSP_INVALID_CMD, nullptr, 0);
     }
+}
+
+// ============================================================
+// DNS Resolution Implementation
+// Lightweight DNS client for ATmega328P
+// ============================================================
+
+/**
+ * @brief Build DNS query packet
+ * @param buffer Output buffer (min 64 bytes)
+ * @param hostname Hostname to resolve
+ * @param transactionId Transaction ID for matching response
+ * @return Length of query packet
+ */
+uint16_t buildDnsQuery(uint8_t* buffer, const char* hostname, uint16_t transactionId) {
+    uint16_t pos = 0;
+
+    // DNS Header (12 bytes)
+    buffer[pos++] = (transactionId >> 8) & 0xFF;  // Transaction ID (high)
+    buffer[pos++] = transactionId & 0xFF;          // Transaction ID (low)
+    buffer[pos++] = 0x01;  // Flags: Standard query, recursion desired
+    buffer[pos++] = 0x00;
+    buffer[pos++] = 0x00;  // Questions: 1
+    buffer[pos++] = 0x01;
+    buffer[pos++] = 0x00;  // Answer RRs: 0
+    buffer[pos++] = 0x00;
+    buffer[pos++] = 0x00;  // Authority RRs: 0
+    buffer[pos++] = 0x00;
+    buffer[pos++] = 0x00;  // Additional RRs: 0
+    buffer[pos++] = 0x00;
+
+    // Question section: hostname in DNS format
+    // DNS format: [len]label[len]label...[0]
+    const char* label = hostname;
+    while (*label) {
+        // Find end of current label
+        const char* dot = label;
+        while (*dot && *dot != '.') dot++;
+
+        uint8_t labelLen = dot - label;
+        if (labelLen == 0 || labelLen > 63) {
+            return 0;  // Invalid hostname
+        }
+
+        buffer[pos++] = labelLen;
+        memcpy(&buffer[pos], label, labelLen);
+        pos += labelLen;
+
+        label = dot;
+        if (*label == '.') label++;
+    }
+    buffer[pos++] = 0x00;  // End of hostname
+
+    // Query type: A (IPv4 address)
+    buffer[pos++] = 0x00;
+    buffer[pos++] = 0x01;
+
+    // Query class: IN (Internet)
+    buffer[pos++] = 0x00;
+    buffer[pos++] = 0x01;
+
+    return pos;
+}
+
+/**
+ * @brief Parse DNS response and extract IPv4 address
+ * @param response Response buffer
+ * @param length Response length
+ * @param expectedTxId Expected transaction ID
+ * @param resultIP Output buffer for IP (4 bytes)
+ * @return true if valid A record found
+ */
+bool parseDnsResponse(const uint8_t* response, uint16_t length, uint16_t expectedTxId, uint8_t* resultIP) {
+    if (length < 12) return false;  // Too short for header
+
+    // Check transaction ID
+    uint16_t txId = ((uint16_t)response[0] << 8) | response[1];
+    if (txId != expectedTxId) return false;
+
+    // Check flags - response bit should be set (0x80), no error (lower 4 bits = 0)
+    if (!(response[2] & 0x80)) return false;  // Not a response
+    if ((response[3] & 0x0F) != 0) return false;  // Error code present
+
+    // Get counts
+    uint16_t questions = ((uint16_t)response[4] << 8) | response[5];
+    uint16_t answers = ((uint16_t)response[6] << 8) | response[7];
+
+    if (answers == 0) return false;  // No answers
+
+    // Skip header
+    uint16_t pos = 12;
+
+    // Skip question section
+    for (uint16_t i = 0; i < questions && pos < length; i++) {
+        // Skip hostname (labels)
+        while (pos < length && response[pos] != 0) {
+            if ((response[pos] & 0xC0) == 0xC0) {
+                // Compression pointer
+                pos += 2;
+                break;
+            } else {
+                pos += response[pos] + 1;
+            }
+        }
+        if (pos < length && response[pos] == 0) pos++;  // Skip null terminator
+        pos += 4;  // Skip QTYPE and QCLASS
+    }
+
+    // Parse answer section
+    for (uint16_t i = 0; i < answers && pos < length; i++) {
+        // Skip name (may be compressed)
+        if ((response[pos] & 0xC0) == 0xC0) {
+            pos += 2;  // Compression pointer
+        } else {
+            while (pos < length && response[pos] != 0) {
+                pos += response[pos] + 1;
+            }
+            if (pos < length) pos++;  // Skip null terminator
+        }
+
+        if (pos + 10 > length) return false;  // Not enough data
+
+        uint16_t rtype = ((uint16_t)response[pos] << 8) | response[pos + 1];
+        // uint16_t rclass = ((uint16_t)response[pos + 2] << 8) | response[pos + 3];
+        // uint32_t ttl = ((uint32_t)response[pos + 4] << 24) | ...
+        uint16_t rdlength = ((uint16_t)response[pos + 8] << 8) | response[pos + 9];
+
+        pos += 10;  // Skip to RDATA
+
+        if (pos + rdlength > length) return false;
+
+        // Type A (IPv4) = 1, Class IN = 1
+        if (rtype == 1 && rdlength == 4) {
+            memcpy(resultIP, &response[pos], 4);
+            return true;
+        }
+
+        pos += rdlength;  // Skip this record's data
+    }
+
+    return false;  // No A record found
+}
+
+/**
+ * @brief Resolve hostname to IPv4 address via DNS
+ * @param hostname Hostname to resolve
+ * @param resultIP Output buffer for IP (4 bytes)
+ * @return true if resolved successfully
+ */
+bool dnsResolve(const char* hostname, uint8_t* resultIP) {
+    // Use socket 2 for DNS (reserved for DNS queries)
+    const uint8_t dnsSocket = DNS_SOCKET;
+
+    // Check if DNS server is configured
+    if (dnsServerIP[0] == 0 && dnsServerIP[1] == 0 &&
+        dnsServerIP[2] == 0 && dnsServerIP[3] == 0) {
+        return false;  // No DNS server configured
+    }
+
+    // Open UDP socket on random local port
+    uint16_t localPort = 10000 + (millis() & 0x3FFF);  // Semi-random port
+    if (!w5500.socketOpenUDP(dnsSocket, localPort)) {
+        return false;
+    }
+
+    // Build DNS query
+    uint8_t queryBuffer[64];  // Max 64 bytes for query (hostname up to 63 chars)
+    uint16_t transactionId = (uint16_t)(millis() ^ 0xA5A5);
+    uint16_t queryLen = buildDnsQuery(queryBuffer, hostname, transactionId);
+
+    if (queryLen == 0) {
+        w5500.socketClose(dnsSocket);
+        return false;
+    }
+
+    // Send DNS query
+    uint16_t sent = w5500.udpSend(dnsSocket, dnsServerIP, DNS_SERVER_PORT,
+                                   queryBuffer, queryLen);
+    if (sent == 0) {
+        w5500.socketClose(dnsSocket);
+        return false;
+    }
+
+    // Wait for response with timeout
+    uint32_t startTime = millis();
+    bool resolved = false;
+
+    while (millis() - startTime < DNS_TIMEOUT_MS) {
+        uint16_t available = w5500.socketAvailable(dnsSocket);
+        if (available > 0) {
+            uint8_t responseBuffer[128];  // Max response size we can handle
+            uint8_t srcIP[4];
+            uint16_t srcPort;
+
+            uint16_t received = w5500.udpReceive(dnsSocket, srcIP, &srcPort,
+                                                  responseBuffer, sizeof(responseBuffer));
+            if (received > 0) {
+                // Parse DNS response
+                if (parseDnsResponse(responseBuffer, received, transactionId, resultIP)) {
+                    resolved = true;
+                    break;
+                }
+            }
+        }
+        delay(10);  // Small delay to avoid busy loop
+    }
+
+    // Close DNS socket
+    w5500.socketClose(dnsSocket);
+
+    return resolved;
 }
 
 // ============================================================

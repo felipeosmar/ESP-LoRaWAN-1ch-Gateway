@@ -7,9 +7,15 @@
 #include <Adafruit_SSD1306.h>
 #include "config.h"
 
+// Forward declaration
+class NetworkManager;
+
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 #define OLED_ADDRESS 0x3C
+
+// Failover notification duration (2 seconds)
+#define OLED_FAILOVER_NOTIFICATION_DURATION_MS 2000
 
 class OLEDManager {
 public:
@@ -26,6 +32,9 @@ public:
     void showWiFiInfo(const char* ssid, int rssi, const char* ip);
     void showError(const char* message);
 
+    // Failover notification (displays for 2 seconds then returns to normal)
+    void showFailoverNotification(const char* fromIface, const char* toIface);
+
     // Update display
     void update();
 
@@ -35,10 +44,14 @@ public:
     void displayOff();
     void clear();
 
+    // Network manager reference for querying active interface
+    void setNetworkManager(NetworkManager* nm) { _networkManager = nm; }
+
 private:
     Adafruit_SSD1306* display;
     TwoWire* wire;
     bool available;
+    NetworkManager* _networkManager;
 
     // Current display state
     enum DisplayMode {
@@ -47,12 +60,18 @@ private:
         MODE_PACKET,
         MODE_STATS,
         MODE_WIFI,
-        MODE_ERROR
+        MODE_ERROR,
+        MODE_FAILOVER_NOTIFICATION
     };
 
     DisplayMode currentMode;
+    DisplayMode previousMode;  // Mode to return to after notification
     unsigned long lastUpdate;
     unsigned long modeStartTime;
+
+    // Failover notification state
+    char failoverFromIface[16];
+    char failoverToIface[16];
 
     // Cached data for display
     struct {
@@ -75,9 +94,14 @@ private:
     // Animation
     uint8_t animFrame;
 
+    // Helper methods
     void drawHeader(const char* title);
+    void drawHeaderWithNetwork(const char* title);
     void drawProgressBar(int x, int y, int width, int value, int maxValue);
     void drawSignalStrength(int x, int y, int rssi);
+    void drawNetworkIndicator(int x, int y);
+    char getNetworkIndicator();
+    int8_t getWiFiRSSI();
 };
 
 // Global instance

@@ -1,4 +1,5 @@
 #include "udp_forwarder.h"
+#include <WiFi.h>  // Para WiFi.macAddress() no fallback de EUI
 #include <LittleFS.h>
 #include <time.h>
 #include "ntp_manager.h"
@@ -13,7 +14,6 @@ const char UDPForwarder::base64Chars[] =
 UDPForwarder::UDPForwarder()
     : connected(false)
     , tokenCounter(0)
-    , useNetworkManager(false)
     , lastStatTime(0)
     , lastPullTime(0) {
 
@@ -55,24 +55,21 @@ bool UDPForwarder::begin() {
                   config.serverHost, config.serverPortUp, config.serverPortDown);
 
     // Verificar se NetworkManager esta disponivel
-    if (networkManager && networkManager->isConnected()) {
-        useNetworkManager = true;
-        Serial.println("[UDP] Using NetworkManager for UDP");
-
-        if (!networkManager->udpBegin(config.serverPortDown)) {
-            Serial.println("[UDP] Failed to start UDP via NetworkManager");
-            return false;
-        }
-    } else {
-        // Fallback para WiFiUDP direto
-        useNetworkManager = false;
-        Serial.println("[UDP] Using legacy WiFiUDP");
-
-        if (!legacyUdp.begin(config.serverPortDown)) {
-            Serial.println("[UDP] Failed to start UDP");
-            return false;
-        }
+    if (!networkManager) {
+        Serial.println("[UDP] ERROR: NetworkManager not available");
+        return false;
     }
+
+    if (!networkManager->isConnected()) {
+        Serial.println("[UDP] WARNING: Network not connected yet");
+    }
+
+    if (!networkManager->udpBegin(config.serverPortDown)) {
+        Serial.println("[UDP] Failed to start UDP via NetworkManager");
+        return false;
+    }
+
+    Serial.println("[UDP] Using NetworkManager for UDP");
 
     connected = true;
     Serial.println("[UDP] Forwarder initialized");
@@ -84,9 +81,14 @@ bool UDPForwarder::begin() {
 }
 
 void UDPForwarder::generateGatewayEui() {
-    // Get WiFi MAC address
+    // Get MAC address from NetworkManager (active interface)
     uint8_t mac[6];
-    WiFi.macAddress(mac);
+    if (networkManager && networkManager->getActiveInterface()) {
+        networkManager->getActiveInterface()->macAddress(mac);
+    } else {
+        // Fallback: use WiFi MAC directly (before NetworkManager is ready)
+        WiFi.macAddress(mac);
+    }
 
     // Create EUI-64 from MAC-48 by inserting FFFE in the middle
     // MAC: AA:BB:CC:DD:EE:FF -> EUI: AA:BB:CC:FF:FE:DD:EE:FF
@@ -304,20 +306,13 @@ bool UDPForwarder::sendPushData(const char* jsonData, size_t length) {
     memcpy(&udpBuffer[4], config.gatewayEui, 8);
     memcpy(&udpBuffer[12], jsonData, length);
 
-    // Send to server via NetworkManager ou legacyUdp
-    bool sendOk = false;
-    if (useNetworkManager && networkManager) {
-        if (networkManager->udpBeginPacket(config.serverHost, config.serverPortUp)) {
-            networkManager->udpWrite(udpBuffer, packetLen);
-            sendOk = networkManager->udpEndPacket();
-        }
-    } else {
-        legacyUdp.beginPacket(config.serverHost, config.serverPortUp);
-        legacyUdp.write(udpBuffer, packetLen);
-        sendOk = legacyUdp.endPacket();
+    // Send to server via NetworkManager
+    if (!networkManager->udpBeginPacket(config.serverHost, config.serverPortUp)) {
+        Serial.println("[UDP] Failed to begin PUSH_DATA packet");
+        return false;
     }
-
-    if (!sendOk) {
+    networkManager->udpWrite(udpBuffer, packetLen);
+    if (!networkManager->udpEndPacket()) {
         Serial.println("[UDP] Failed to send PUSH_DATA");
         return false;
     }
@@ -341,19 +336,13 @@ bool UDPForwarder::sendPullData() {
     udpBuffer[3] = PKT_PULL_DATA;
     memcpy(&udpBuffer[4], config.gatewayEui, 8);
 
-    bool sendOk = false;
-    if (useNetworkManager && networkManager) {
-        if (networkManager->udpBeginPacket(config.serverHost, config.serverPortUp)) {
-            networkManager->udpWrite(udpBuffer, 12);
-            sendOk = networkManager->udpEndPacket();
-        }
-    } else {
-        legacyUdp.beginPacket(config.serverHost, config.serverPortUp);
-        legacyUdp.write(udpBuffer, 12);
-        sendOk = legacyUdp.endPacket();
+    // Send via NetworkManager
+    if (!networkManager->udpBeginPacket(config.serverHost, config.serverPortUp)) {
+        Serial.println("[UDP] Failed to begin PULL_DATA packet");
+        return false;
     }
-
-    if (!sendOk) {
+    networkManager->udpWrite(udpBuffer, 12);
+    if (!networkManager->udpEndPacket()) {
         Serial.println("[UDP] Failed to send PULL_DATA");
         return false;
     }
@@ -400,14 +389,7 @@ String UDPForwarder::buildStatJson() {
 }
 
 void UDPForwarder::receivePackets() {
-    int packetSize = 0;
-
-    if (useNetworkManager && networkManager) {
-        packetSize = networkManager->udpParsePacket();
-    } else {
-        packetSize = legacyUdp.parsePacket();
-    }
-
+    int packetSize = networkManager->udpParsePacket();
     if (packetSize <= 0) return;
 
     if (packetSize > UDP_BUFFER_SIZE) {
@@ -415,13 +397,7 @@ void UDPForwarder::receivePackets() {
         return;
     }
 
-    int len = 0;
-    if (useNetworkManager && networkManager) {
-        len = networkManager->udpRead(udpBuffer, UDP_BUFFER_SIZE);
-    } else {
-        len = legacyUdp.read(udpBuffer, UDP_BUFFER_SIZE);
-    }
-
+    int len = networkManager->udpRead(udpBuffer, UDP_BUFFER_SIZE);
     if (len < 4) return;
 
     // Parse header
@@ -564,19 +540,13 @@ bool UDPForwarder::sendTxAck(uint16_t token, const char* error) {
         }
     }
 
-    bool sendOk = false;
-    if (useNetworkManager && networkManager) {
-        if (networkManager->udpBeginPacket(config.serverHost, config.serverPortUp)) {
-            networkManager->udpWrite(udpBuffer, packetLen);
-            sendOk = networkManager->udpEndPacket();
-        }
-    } else {
-        legacyUdp.beginPacket(config.serverHost, config.serverPortUp);
-        legacyUdp.write(udpBuffer, packetLen);
-        sendOk = legacyUdp.endPacket();
+    // Send via NetworkManager
+    if (!networkManager->udpBeginPacket(config.serverHost, config.serverPortUp)) {
+        Serial.println("[UDP] Failed to begin TX_ACK packet");
+        return false;
     }
-
-    if (!sendOk) {
+    networkManager->udpWrite(udpBuffer, packetLen);
+    if (!networkManager->udpEndPacket()) {
         Serial.println("[UDP] Failed to send TX_ACK");
         return false;
     }
@@ -584,6 +554,17 @@ bool UDPForwarder::sendTxAck(uint16_t token, const char* error) {
     stats.txAckSent++;
     Serial.printf("[UDP] TX_ACK sent (token=%04X)\n", token);
     return true;
+}
+
+bool UDPForwarder::isHealthy(uint32_t timeout) const {
+    // If no ACK ever received, consider unhealthy
+    if (stats.lastAckTime == 0) {
+        return false;
+    }
+
+    // Check if lastAckTime is within timeout window
+    uint32_t now = millis();
+    return (now - stats.lastAckTime) < timeout;
 }
 
 uint16_t UDPForwarder::getNextToken() {
@@ -676,15 +657,13 @@ String UDPForwarder::getStatusJson() {
     doc["connected"] = connected;
     doc["enabled"] = config.enabled;
 
-    // Adicionar info da interface de rede
-    if (useNetworkManager && networkManager) {
-        doc["network_interface"] = networkManager->getActiveInterface() ?
-                                   networkManager->getActiveInterface()->getName() : "none";
-        doc["network_ip"] = networkManager->getActiveInterface() ?
-                            networkManager->getActiveInterface()->localIP().toString() : "";
+    // Adicionar info da interface de rede via NetworkManager
+    if (networkManager && networkManager->getActiveInterface()) {
+        doc["network_interface"] = networkManager->getActiveInterface()->getName();
+        doc["network_ip"] = networkManager->getActiveInterface()->localIP().toString();
     } else {
-        doc["network_interface"] = "WiFi (legacy)";
-        doc["network_ip"] = WiFi.localIP().toString();
+        doc["network_interface"] = "none";
+        doc["network_ip"] = "";
     }
 
     JsonObject cfg = doc.createNestedObject("config");

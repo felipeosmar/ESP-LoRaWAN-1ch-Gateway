@@ -1,4 +1,5 @@
 #include "oled_manager.h"
+#include "network_manager.h"
 #include <WiFi.h>
 
 // Global instance
@@ -8,12 +9,16 @@ OLEDManager::OLEDManager()
     : display(nullptr)
     , wire(nullptr)
     , available(false)
+    , _networkManager(nullptr)
     , currentMode(MODE_LOGO)
+    , previousMode(MODE_STATUS)
     , lastUpdate(0)
     , modeStartTime(0)
     , animFrame(0) {
 
     memset(&displayData, 0, sizeof(displayData));
+    memset(failoverFromIface, 0, sizeof(failoverFromIface));
+    memset(failoverToIface, 0, sizeof(failoverToIface));
 }
 
 bool OLEDManager::begin() {
@@ -92,8 +97,8 @@ void OLEDManager::showStatus(const char* gatewayEui, bool serverConnected, bool 
 
     display->clearDisplay();
 
-    // Header
-    drawHeader("Gateway Status");
+    // Header with network indicator
+    drawHeaderWithNetwork("Gateway Status");
 
     // EUI
     display->setTextSize(1);
@@ -135,6 +140,44 @@ void OLEDManager::showStatus(const char* gatewayEui, bool serverConnected, bool 
     display->display();
 }
 
+void OLEDManager::showFailoverNotification(const char* fromIface, const char* toIface) {
+    if (!available) return;
+
+    // Save current mode to return to after notification
+    if (currentMode != MODE_FAILOVER_NOTIFICATION) {
+        previousMode = currentMode;
+    }
+
+    currentMode = MODE_FAILOVER_NOTIFICATION;
+    modeStartTime = millis();
+
+    // Store interface names
+    strlcpy(failoverFromIface, fromIface, sizeof(failoverFromIface));
+    strlcpy(failoverToIface, toIface, sizeof(failoverToIface));
+
+    display->clearDisplay();
+
+    // Large "FAILOVER" text at top
+    display->setTextSize(2);
+    display->setCursor(10, 8);
+    display->print("FAILOVER");
+
+    // From -> To in the middle
+    display->setTextSize(1);
+    display->setCursor(20, 32);
+    display->print(fromIface);
+    display->print(" -> ");
+    display->print(toIface);
+
+    // Status line at bottom
+    display->setCursor(10, 50);
+    display->print("Switching network...");
+
+    display->display();
+
+    Serial.printf("[OLED] Failover notification: %s -> %s\n", fromIface, toIface);
+}
+
 void OLEDManager::showPacketInfo(int rssi, float snr, int size, uint32_t freq) {
     if (!available) return;
 
@@ -147,8 +190,8 @@ void OLEDManager::showPacketInfo(int rssi, float snr, int size, uint32_t freq) {
 
     display->clearDisplay();
 
-    // Header
-    drawHeader("Packet Received");
+    // Header with network indicator
+    drawHeaderWithNetwork("Packet Received");
 
     display->setTextSize(1);
 
@@ -182,8 +225,8 @@ void OLEDManager::showStats(uint32_t rxPackets, uint32_t txPackets, uint32_t err
 
     display->clearDisplay();
 
-    // Header
-    drawHeader("Statistics");
+    // Header with network indicator
+    drawHeaderWithNetwork("Statistics");
 
     display->setTextSize(1);
 
@@ -224,8 +267,8 @@ void OLEDManager::showWiFiInfo(const char* ssid, int rssi, const char* ip) {
 
     display->clearDisplay();
 
-    // Header
-    drawHeader("WiFi Status");
+    // Header with network indicator
+    drawHeaderWithNetwork("WiFi Status");
 
     display->setTextSize(1);
 
@@ -294,6 +337,17 @@ void OLEDManager::update() {
     // Animation frame counter
     animFrame++;
 
+    // Auto-return from failover notification after 2 seconds
+    if (currentMode == MODE_FAILOVER_NOTIFICATION) {
+        if (millis() - modeStartTime > OLED_FAILOVER_NOTIFICATION_DURATION_MS) {
+            // Return to previous mode
+            showStatus(displayData.gatewayEui,
+                       displayData.serverConnected,
+                       displayData.loraActive);
+        }
+        return;  // Don't process other mode timeouts during notification
+    }
+
     // Auto-return from packet info after 3 seconds
     if (currentMode == MODE_PACKET) {
         if (millis() - modeStartTime > 3000) {
@@ -320,6 +374,91 @@ void OLEDManager::drawHeader(const char* title) {
 
     // Underline
     display->drawLine(0, 10, 127, 10, SSD1306_WHITE);
+}
+
+void OLEDManager::drawHeaderWithNetwork(const char* title) {
+    display->setTextSize(1);
+    display->setCursor(0, 0);
+    display->print(title);
+
+    // Draw network indicator on the right side of header
+    drawNetworkIndicator(108, 0);
+
+    // Underline
+    display->drawLine(0, 10, 127, 10, SSD1306_WHITE);
+}
+
+void OLEDManager::drawNetworkIndicator(int x, int y) {
+    char indicator = getNetworkIndicator();
+
+    // Draw indicator character in a box
+    display->drawRect(x, y, 18, 9, SSD1306_WHITE);
+    display->setCursor(x + 2, y + 1);
+
+    if (indicator == 'W') {
+        display->print("W");
+        // When WiFi active, show signal bars
+        int8_t rssi = getWiFiRSSI();
+        if (rssi != 0) {
+            // Draw mini signal bars next to W
+            int bars = 0;
+            if (rssi > -50) bars = 4;
+            else if (rssi > -60) bars = 3;
+            else if (rssi > -70) bars = 2;
+            else if (rssi > -80) bars = 1;
+
+            // Draw 4 small bars
+            for (int i = 0; i < 4; i++) {
+                int barHeight = (i + 1);
+                int barY = y + 7 - barHeight;
+                if (i < bars) {
+                    display->fillRect(x + 9 + i * 2, barY, 1, barHeight, SSD1306_WHITE);
+                } else {
+                    display->drawPixel(x + 9 + i * 2, y + 6, SSD1306_WHITE);
+                }
+            }
+        }
+    } else if (indicator == 'E') {
+        display->print("E");
+        // For Ethernet, show a filled circle (connected indicator)
+        display->fillCircle(x + 13, y + 4, 2, SSD1306_WHITE);
+    } else {
+        display->print("-");
+        // No connection - show empty circle
+        display->drawCircle(x + 13, y + 4, 2, SSD1306_WHITE);
+    }
+}
+
+char OLEDManager::getNetworkIndicator() {
+    if (!_networkManager) {
+        return '-';
+    }
+
+    NetworkType activeType = _networkManager->getActiveType();
+
+    switch (activeType) {
+        case NetworkType::ETHERNET:
+            return 'E';
+        case NetworkType::WIFI:
+            return 'W';
+        default:
+            return '-';
+    }
+}
+
+int8_t OLEDManager::getWiFiRSSI() {
+    if (!_networkManager) {
+        return 0;
+    }
+
+    // Only return RSSI when WiFi is the active interface
+    if (_networkManager->getActiveType() == NetworkType::WIFI) {
+        WiFiAdapter* wifi = _networkManager->getWiFi();
+        if (wifi && wifi->isConnected()) {
+            return wifi->getRSSI();
+        }
+    }
+    return 0;
 }
 
 void OLEDManager::drawProgressBar(int x, int y, int width, int value, int maxValue) {

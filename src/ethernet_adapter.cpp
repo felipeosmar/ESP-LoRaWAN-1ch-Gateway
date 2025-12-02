@@ -6,7 +6,6 @@
  */
 
 #include "ethernet_adapter.h"
-#include <WiFi.h>  // Para fallback DNS via WiFi
 
 EthernetAdapter::EthernetAdapter(ATmegaBridge& bridge)
     : _bridge(bridge)
@@ -344,25 +343,24 @@ bool EthernetAdapter::hostByName(const char* host, IPAddress& result) {
         strcmp(_dnsCache_host, host) == 0 &&
         millis() - _dnsCache_time < 300000) {
         result = _dnsCache_ip;
+        Serial.printf("[ETH] DNS cache hit: %s -> %s\n", host, result.toString().c_str());
         return true;
     }
 
-    // TODO: Implementar DNS via ATmega
-    // Por enquanto, usar WiFi se disponivel para DNS
-    // ou retornar falso se so temos Ethernet
+    // Resolve via ATmega/W5500 native DNS
+    Serial.printf("[ETH] Resolving DNS: %s\n", host);
 
-    // Tentar resolver via WiFi (se conectado)
-    if (WiFi.status() == WL_CONNECTED) {
-        if (WiFi.hostByName(host, result)) {
-            // Cachear resultado
-            strlcpy(_dnsCache_host, host, sizeof(_dnsCache_host));
-            _dnsCache_ip = result;
-            _dnsCache_time = millis();
-            return true;
-        }
+    if (_bridge.dnsResolve(host, result)) {
+        // Cache result (5-minute TTL)
+        strlcpy(_dnsCache_host, host, sizeof(_dnsCache_host));
+        _dnsCache_ip = result;
+        _dnsCache_time = millis();
+
+        Serial.printf("[ETH] DNS resolved: %s -> %s\n", host, result.toString().c_str());
+        return true;
     }
 
-    Serial.printf("[ETH] DNS not implemented for: %s\n", host);
+    Serial.printf("[ETH] DNS resolution failed for: %s\n", host);
     return false;
 }
 

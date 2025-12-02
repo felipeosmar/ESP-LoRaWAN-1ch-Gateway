@@ -12,6 +12,12 @@ WiFiAdapter::WiFiAdapter()
     , _connectedTime(0)
     , _udpStarted(false)
 {
+    // Initialize WiFiConfig with DHCP defaults
+    _config.useDHCP = true;
+    _config.staticIP = IPAddress(0, 0, 0, 0);
+    _config.gateway = IPAddress(0, 0, 0, 0);
+    _config.subnet = IPAddress(255, 255, 255, 0);
+    _config.dns = IPAddress(8, 8, 8, 8);
 }
 
 WiFiAdapter::~WiFiAdapter() {
@@ -111,7 +117,7 @@ bool WiFiAdapter::isConnected() {
     if (WiFi.getMode() == WIFI_STA || WiFi.getMode() == WIFI_AP_STA) {
         return WiFi.status() == WL_CONNECTED && WiFi.localIP() != IPAddress(0, 0, 0, 0);
     }
-    // Em modo AP, considerar conectado se AP está ativo
+    // Em modo AP, considerar conectado se AP esta ativo
     if (WiFi.getMode() == WIFI_AP) {
         return WiFi.softAPIP() != IPAddress(0, 0, 0, 0);
     }
@@ -169,6 +175,37 @@ IPAddress WiFiAdapter::gatewayIP() {
 
 void WiFiAdapter::macAddress(uint8_t* mac) {
     WiFi.macAddress(mac);
+}
+
+void WiFiAdapter::applyStaticIPConfig() {
+    // Only apply static IP if DHCP is disabled and we have valid static IP
+    if (!_config.useDHCP && _config.staticIP != IPAddress(0, 0, 0, 0)) {
+        Serial.printf("[WiFi] Applying static IP: %s\n", _config.staticIP.toString().c_str());
+
+        // Configure WiFi with static IP settings
+        // Note: This must be called before WiFi.begin() or reconnect
+        if (!WiFi.config(_config.staticIP, _config.gateway, _config.subnet, _config.dns)) {
+            Serial.println("[WiFi] Failed to configure static IP");
+        } else {
+            Serial.printf("[WiFi] Static IP configured: %s, GW: %s, DNS: %s\n",
+                          _config.staticIP.toString().c_str(),
+                          _config.gateway.toString().c_str(),
+                          _config.dns.toString().c_str());
+        }
+    } else if (_config.useDHCP) {
+        // Reset to DHCP mode - use zeros to enable DHCP
+        WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
+        Serial.println("[WiFi] DHCP mode enabled");
+    }
+}
+
+String WiFiAdapter::getMacAddress() {
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    char macStr[18];
+    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return String(macStr);
 }
 
 // ================== UDP ==================

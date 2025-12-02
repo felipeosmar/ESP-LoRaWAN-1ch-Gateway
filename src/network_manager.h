@@ -16,10 +16,18 @@
 #include "ethernet_adapter.h"
 #include <ArduinoJson.h>
 
+// Forward declaration for UDPForwarder
+class UDPForwarder;
+
 // Configuracao padrao
 #define NET_FAILOVER_TIMEOUT_DEFAULT   30000   // 30 segundos
 #define NET_RECONNECT_INTERVAL_DEFAULT 10000   // 10 segundos
 #define NET_STATUS_CHECK_INTERVAL      1000    // 1 segundo
+#define NET_STABILITY_PERIOD_DEFAULT   60000   // 60 segundos
+
+// Failover callback type
+// Called when failover occurs: callback(fromInterface, toInterface)
+typedef void (*FailoverCallback)(const char* fromInterface, const char* toInterface);
 
 /**
  * @enum PrimaryInterface
@@ -41,6 +49,8 @@ struct NetworkManagerConfig {
     bool failoverEnabled;
     uint32_t failoverTimeout;    // Tempo para failover (ms)
     uint32_t reconnectInterval;  // Intervalo de tentativa de reconexao (ms)
+    bool healthCheckEnabled;     // Usar health check baseado em ACK do ChirpStack
+    uint32_t stabilityPeriod;    // Periodo de estabilidade antes de voltar para primaria (ms)
 };
 
 /**
@@ -122,6 +132,24 @@ public:
      */
     void setFailoverTimeout(uint32_t timeoutMs);
 
+    /**
+     * @brief Definir referencia ao UDPForwarder para health checks
+     * @param forwarder Ponteiro para UDPForwarder
+     */
+    void setUDPForwarder(UDPForwarder* forwarder) { _udpForwarder = forwarder; }
+
+    /**
+     * @brief Registrar callback para eventos de failover
+     * @param callback Funcao a ser chamada quando failover ocorrer
+     *
+     * O callback recebe dois parametros:
+     * - fromInterface: nome da interface de origem (ex: "WiFi", "Ethernet")
+     * - toInterface: nome da interface de destino
+     *
+     * Usado para atualizar displays com notificacao de failover.
+     */
+    void setFailoverCallback(FailoverCallback callback) { _failoverCallback = callback; }
+
     // ================== Status ==================
 
     /**
@@ -165,6 +193,21 @@ public:
      * @return String JSON
      */
     String getStatusJson();
+
+    /**
+     * @brief Obter status de saude da rede em formato JSON
+     * @return String JSON com: healthy, lastAckTime, failoverTimeout,
+     *         failoverActive, stabilityPeriod, primaryStableFor
+     *
+     * Este metodo e usado pelo endpoint GET /api/network/health
+     */
+    String getHealthJson();
+
+    /**
+     * @brief Verificar se a conexao esta saudavel (baseado em ACKs do ChirpStack)
+     * @return true se a conexao esta saudavel
+     */
+    bool isApplicationHealthy();
 
     // ================== Controle Manual ==================
 
@@ -243,6 +286,12 @@ private:
     NetworkManagerConfig _config;
     NetworkManagerStats _stats;
 
+    // Referencia ao UDPForwarder para health checks
+    UDPForwarder* _udpForwarder;
+
+    // Callback para notificar failover (usado por displays)
+    FailoverCallback _failoverCallback;
+
     // Estado atual
     NetworkInterface* _activeInterface;
     bool _manualMode;
@@ -258,6 +307,9 @@ private:
     uint32_t _lastReconnectAttempt;
     bool _failoverActive;
 
+    // Stability timer for return-to-primary
+    uint32_t _primaryStableStart;
+
     // UDP
     uint16_t _udpPort;
     bool _udpStarted;
@@ -266,6 +318,7 @@ private:
     void updateInterfaces();
     void checkFailover();
     void switchToInterface(NetworkInterface* iface);
+    void notifyFailover(const char* fromIface, const char* toIface);
     NetworkInterface* getPrimaryInterface();
     NetworkInterface* getSecondaryInterface();
     void updateStats();

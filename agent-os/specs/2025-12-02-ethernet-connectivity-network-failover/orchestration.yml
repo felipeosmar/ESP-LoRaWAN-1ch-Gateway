@@ -1,0 +1,37 @@
+task_groups:
+  - name: DNS Protocol Command Implementation
+    claude_code_subagent: DNS Protocol
+    standards:
+      - all
+  - name: Application-Layer Health Checking
+    claude_code_subagent: Health Check
+    standards:
+      - all
+  - name: Return-to-Primary with Stability Period
+    claude_code_subagent: Link Return
+    standards:
+      - all
+  - name: Primary Interface Default Change
+    claude_code_subagent: Primary Interface
+    standards:
+      - all
+  - name: Network Status Display Updates
+    claude_code_subagent: Status Update
+    standards:
+      - all
+  - name: Network Health API Endpoint
+    claude_code_subagent: API Health
+    standards:
+      - all
+  - name: Extended Network Configuration API
+    claude_code_subagent: Extended Net API
+    standards:
+      - all
+  - name: Web UI Network Dashboard Updates
+    claude_code_subagent: UI Update
+    standards:
+      - all
+  - name: Integration Testing and Gap Analysis
+    claude_code_subagent: Tests
+    standards:
+      - all

@@ -175,6 +175,23 @@ public:
      */
     uint16_t udpAvailable();
 
+    // ================== DNS ==================
+
+    /**
+     * @brief Resolver hostname para endereco IP via DNS
+     *
+     * Envia CMD_DNS_RESOLVE para o ATmega que realiza a consulta DNS
+     * via W5500. Usa o servidor DNS configurado na inicializacao Ethernet.
+     *
+     * @param hostname Nome do host a resolver (max 63 caracteres)
+     * @param result Endereco IP resultante (preenchido se sucesso)
+     * @return true se hostname foi resolvido com sucesso
+     *
+     * @note Timeout de 5 segundos (DNS_TIMEOUT_MS)
+     * @note Requer Ethernet inicializada e link ativo
+     */
+    bool dnsResolve(const char* hostname, IPAddress& result);
+
     // ================== RTC ==================
 
     /**

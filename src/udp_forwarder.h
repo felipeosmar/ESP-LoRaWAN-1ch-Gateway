@@ -2,8 +2,6 @@
 #define UDP_FORWARDER_H
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
 #include <ArduinoJson.h>
 #include "config.h"
 #include "lora_gateway.h"
@@ -71,6 +69,20 @@ public:
     void resetStats();
     String getGatewayEuiString();
 
+    // Health check interface for NetworkManager
+    /**
+     * @brief Get timestamp of last ACK received (PUSH_ACK or PULL_ACK)
+     * @return Timestamp in milliseconds (millis())
+     */
+    uint32_t getLastAckTime() const { return stats.lastAckTime; }
+
+    /**
+     * @brief Check if connection to ChirpStack is healthy
+     * @param timeout Maximum time since last ACK before considered unhealthy (ms)
+     * @return true if lastAckTime is within timeout window
+     */
+    bool isHealthy(uint32_t timeout) const;
+
 private:
     // Nota: UDP agora eh gerenciado pelo NetworkManager
     // WiFiUDP udp; // REMOVIDO - usar networkManager->udpXXX()
@@ -79,8 +91,6 @@ private:
 
     bool connected;
     uint16_t tokenCounter;
-    bool useNetworkManager;  // Flag para usar NetworkManager ao inves de WiFiUDP direto
-    WiFiUDP legacyUdp;       // Fallback se NetworkManager nao disponivel
 
     // Timing
     unsigned long lastStatTime;

@@ -6,6 +6,7 @@
  */
 
 #include "w5500_driver.h"
+#include "protocol.h"  // Para macros de debug
 
 // ============================================================
 // Construtor
@@ -28,10 +29,15 @@ bool W5500Driver::begin() {
     // Configurar SPI
     SPI.begin();
 
+    DBG_VERBOSE("W5500: Checking presence...");
+
     // Verificar se W5500 esta presente
     if (!isPresent()) {
+        DBG_ERROR("W5500: Chip not found");
         return false;
     }
+
+    DBG_VERBOSE("W5500: Performing soft reset...");
 
     // Soft reset
     softReset();
@@ -39,6 +45,7 @@ bool W5500Driver::begin() {
 
     // Verificar novamente apos reset
     if (!isPresent()) {
+        DBG_ERROR("W5500: Not present after reset");
         return false;
     }
 
@@ -49,6 +56,7 @@ bool W5500Driver::begin() {
     }
 
     _initialized = true;
+    DBG_INFO("W5500: Initialized OK");
     return true;
 }
 
@@ -124,7 +132,10 @@ uint8_t W5500Driver::getPhyConfig() {
 // ============================================================
 
 bool W5500Driver::socketOpenUDP(uint8_t socket, uint16_t port) {
-    if (socket >= W5500_SOCKET_COUNT) return false;
+    if (socket >= W5500_SOCKET_COUNT) {
+        DBG_ERROR("W5500: Invalid socket %u", socket);
+        return false;
+    }
 
     // Fechar socket se estiver aberto
     socketClose(socket);
@@ -137,11 +148,19 @@ bool W5500Driver::socketOpenUDP(uint8_t socket, uint16_t port) {
 
     // Abrir socket
     if (!execSocketCmd(socket, W5500_Sn_CR_OPEN)) {
+        DBG_ERROR("W5500: Socket %u open cmd failed", socket);
         return false;
     }
 
     // Verificar se abriu corretamente
-    return (socketStatus(socket) == W5500_Sn_SR_UDP);
+    uint8_t status = socketStatus(socket);
+    if (status == W5500_Sn_SR_UDP) {
+        DBG_VERBOSE("W5500: Socket %u UDP opened on port %u", socket, port);
+        return true;
+    }
+
+    DBG_ERROR("W5500: Socket %u status=0x%02X (expected UDP)", socket, status);
+    return false;
 }
 
 bool W5500Driver::socketOpenTCP(uint8_t socket, uint16_t port) {
@@ -196,12 +215,19 @@ uint16_t W5500Driver::socketTxFree(uint8_t socket) {
 
 uint16_t W5500Driver::udpSend(uint8_t socket, const uint8_t* destIP, uint16_t destPort,
                               const uint8_t* data, uint16_t length) {
-    if (socket >= W5500_SOCKET_COUNT) return 0;
-    if (socketStatus(socket) != W5500_Sn_SR_UDP) return 0;
+    if (socket >= W5500_SOCKET_COUNT) {
+        DBG_ERROR("W5500: udpSend invalid socket %u", socket);
+        return 0;
+    }
+    if (socketStatus(socket) != W5500_Sn_SR_UDP) {
+        DBG_ERROR("W5500: udpSend socket %u not UDP", socket);
+        return 0;
+    }
 
     // Verificar espaco disponivel
     uint16_t freeSize = socketTxFree(socket);
     if (freeSize < length) {
+        DBG_WARN("W5500: TX buffer full, truncating %u->%u", length, freeSize);
         length = freeSize;
     }
 
@@ -216,6 +242,7 @@ uint16_t W5500Driver::udpSend(uint8_t socket, const uint8_t* destIP, uint16_t de
 
     // Enviar
     if (!execSocketCmd(socket, W5500_Sn_CR_SEND)) {
+        DBG_ERROR("W5500: udpSend cmd failed");
         return 0;
     }
 
@@ -231,10 +258,12 @@ uint16_t W5500Driver::udpSend(uint8_t socket, const uint8_t* destIP, uint16_t de
         if (ir & W5500_Sn_IR_TIMEOUT) {
             // Timeout - limpar flag
             write8(W5500_SOCKET_REG(socket), W5500_Sn_IR, W5500_Sn_IR_TIMEOUT);
+            DBG_ERROR("W5500: udpSend ARP timeout");
             return 0;
         }
     }
 
+    DBG_ERROR("W5500: udpSend timeout waiting for SEND_OK");
     return 0;
 }
 

@@ -249,6 +249,12 @@ header h1 {
     background: #dc2626;
 }
 
+.btn-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
 .log-container {
     background: var(--bg-primary);
     border: 1px solid var(--border);
@@ -325,6 +331,101 @@ footer {
     width: 4px;
     background: var(--accent);
     border-radius: 2px;
+}
+
+/* Interface Status Grid - Side-by-side display */
+.interface-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+/* Interface Indicator Styles */
+.interface-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border: 2px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+.interface-indicator.active {
+    border-color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.interface-indicator.standby {
+    border-color: var(--border);
+}
+
+.interface-indicator.error {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.interface-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--bg-primary);
+    border-radius: 50%;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    border: 2px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+.interface-indicator.active .interface-icon {
+    border-color: var(--success);
+    color: var(--success);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.interface-label {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.interface-indicator.active .interface-label {
+    color: var(--success);
+}
+
+/* Status classes for span elements */
+.status-ok {
+    color: var(--success);
+}
+
+.status-warn {
+    color: var(--warning);
+}
+
+.status-error {
+    color: var(--danger);
+}
+
+/* Health status specific styles */
+#net-health-status.healthy {
+    color: var(--success);
+}
+
+#net-health-status.unhealthy {
+    color: var(--danger);
+}
+
+/* Override button active state */
+.btn.btn-active {
+    background: var(--accent);
+    color: var(--bg-primary);
+    border-color: var(--accent);
 }
 
 /* File Manager Styles */
@@ -512,6 +613,13 @@ footer {
     border-top: 1px solid var(--border);
 }
 
+/* Responsive Design */
+@media (max-width: 768px) {
+    .interface-status-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 600px) {
     .container {
         padding: 10px;
@@ -551,5 +659,23 @@ footer {
     .modal-content {
         width: 95%;
         max-height: 95vh;
+    }
+
+    .btn-group {
+        flex-direction: column;
+    }
+
+    .btn-group .btn {
+        width: 100%;
+    }
+
+    .interface-indicator {
+        padding: 10px 12px;
+    }
+
+    .interface-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
     }
 }

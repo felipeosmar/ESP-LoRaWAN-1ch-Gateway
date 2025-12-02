@@ -20,6 +20,47 @@
 
 #include <stdint.h>
 
+// ============================================================
+// Debug Configuration
+// ============================================================
+
+// Uncomment to enable debug output via Serial
+#define DEBUG_ENABLED 1
+
+// Debug levels
+#define DEBUG_LEVEL_NONE    0
+#define DEBUG_LEVEL_ERROR   1
+#define DEBUG_LEVEL_WARN    2
+#define DEBUG_LEVEL_INFO    3
+#define DEBUG_LEVEL_VERBOSE 4
+
+// Current debug level
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL DEBUG_LEVEL_INFO
+#endif
+
+// Debug macros
+#if DEBUG_ENABLED
+    #define DBG_PRINT(x)      Serial.print(x)
+    #define DBG_PRINTLN(x)    Serial.println(x)
+    #define DBG_PRINTF(...)   do { char _dbg_buf[80]; snprintf(_dbg_buf, sizeof(_dbg_buf), __VA_ARGS__); Serial.print(_dbg_buf); } while(0)
+
+    #define DBG_ERROR(...)    do { if (DEBUG_LEVEL >= DEBUG_LEVEL_ERROR)   { Serial.print(F("[ERR] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
+    #define DBG_WARN(...)     do { if (DEBUG_LEVEL >= DEBUG_LEVEL_WARN)    { Serial.print(F("[WRN] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
+    #define DBG_INFO(...)     do { if (DEBUG_LEVEL >= DEBUG_LEVEL_INFO)    { Serial.print(F("[INF] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
+    #define DBG_VERBOSE(...)  do { if (DEBUG_LEVEL >= DEBUG_LEVEL_VERBOSE) { Serial.print(F("[VRB] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
+#else
+    #define DBG_PRINT(x)
+    #define DBG_PRINTLN(x)
+    #define DBG_PRINTF(...)
+    #define DBG_ERROR(...)
+    #define DBG_WARN(...)
+    #define DBG_INFO(...)
+    #define DBG_VERBOSE(...)
+#endif
+
+// ============================================================
+
 // Marcadores de pacote
 #define PROTO_START_BYTE    0xAA
 #define PROTO_END_BYTE      0x55
@@ -66,6 +107,31 @@
 #define CMD_UDP_RECV        0x23    // Receber pacote UDP (poll)
 #define CMD_UDP_AVAILABLE   0x24    // Verificar dados disponiveis
 
+/**
+ * @brief CMD_DNS_RESOLVE (0x25) - Resolver hostname para IP via DNS
+ *
+ * Request format:
+ *   [hostname] - Null-terminated hostname string (max 63 chars + null)
+ *   Example: "chirpstack.example.com\0"
+ *
+ * Response format on success (RSP_OK):
+ *   [IP0][IP1][IP2][IP3] - 4-byte IPv4 address
+ *   Example: [192][168][1][100] for 192.168.1.100
+ *
+ * Response format on failure:
+ *   RSP_ERROR   - DNS resolution failed (hostname not found, server error)
+ *   RSP_TIMEOUT - DNS query timed out (5 second timeout)
+ *   RSP_NOT_INIT - Ethernet not initialized
+ *   RSP_NO_LINK - No Ethernet link
+ *
+ * Notes:
+ *   - Uses W5500 DNS client via UDP socket 2
+ *   - DNS server IP must be configured (via DHCP or static config)
+ *   - Hostname max length: 63 characters (DNS label limit)
+ *   - Timeout: 5 seconds
+ */
+#define CMD_DNS_RESOLVE     0x25    // Resolver hostname para IPv4
+
 // Comandos de Socket TCP
 #define CMD_TCP_CONNECT     0x30    // Conectar TCP cliente
 #define CMD_TCP_LISTEN      0x31    // Iniciar TCP servidor
@@ -104,6 +170,14 @@
 #define RSP_NO_DATA         0x08    // Sem dados disponiveis
 #define RSP_BUFFER_FULL     0x09    // Buffer cheio
 #define RSP_CRC_ERROR       0x0A    // Erro de CRC
+
+// ============================================================
+// DNS Constants
+// ============================================================
+#define DNS_TIMEOUT_MS      5000    // 5 second DNS timeout
+#define DNS_MAX_HOSTNAME    63      // Max hostname length (DNS label limit)
+#define DNS_SERVER_PORT     53      // Standard DNS port
+#define DNS_SOCKET          2       // Socket reserved for DNS queries
 
 // ============================================================
 // Estruturas de dados

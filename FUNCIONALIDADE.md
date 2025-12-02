@@ -46,7 +46,7 @@
   │   LoRa     │      │  Ethernet  │     │    GPS     │    │  Cartão SD │    │   USB      │
   │   RFM95W   │      │   W5500    │     │  L80-M39   │    │  TF-01A    │    │  CP2102    │
   │            │      │            │     │            │    │            │    │            │
-  │ • 433 MHz  │      │ • RJ-45    │     │ • Posição  │    │ • Logs     │    │ • Program. │
+  │ • 915 MHz  │      │ • RJ-45    │     │ • Posição  │    │ • Logs     │    │ • Program. │
   │ • Longo    │      │ • 10/100   │     │ • Hora     │    │ • Config   │    │ • Debug    │
   │   alcance  │      │   Mbps     │     │   precisa  │    │ • Dados    │    │ • Serial   │
   │ • IoT      │      │ • Internet │     │            │    │            │    │            │
@@ -105,7 +105,7 @@
   ═══════════════════════════════════════════════════════════════════════════════════════════
 
     📡 COMUNICAÇÃO:
-       • LoRa 433MHz - Recebe dados de sensores remotos (longo alcance)
+       • LoRa 915MHz - Recebe dados de sensores remotos (longo alcance)
        • WiFi/Bluetooth - Via ESP32 (configuração e dados locais)
        • Ethernet - Conexão cabeada com internet
        • USB - Programação e debug

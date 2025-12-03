@@ -6,6 +6,7 @@
  */
 
 #include "ethernet_adapter.h"
+#include <WiFi.h>  // Para obter MAC base do ESP32
 
 EthernetAdapter::EthernetAdapter(ATmegaBridge& bridge)
     : _bridge(bridge)
@@ -75,11 +76,50 @@ bool EthernetAdapter::initEthernet() {
     _status = NetworkStatus::CONNECTING;
     bool success = false;
 
-    if (_config.useDHCP) {
-        Serial.println("[ETH] Starting DHCP...");
-        success = _bridge.ethInit(_config.dhcpTimeout);
+    // Step 1: Generate and set MAC address based on ESP32 WiFi MAC
+    // This ensures a unique MAC for Ethernet derived from device identity
+    generateMAC();
+    if (!_bridge.ethSetMAC(_mac)) {
+        Serial.println("[ETH] Warning: Failed to set MAC address");
     } else {
+        Serial.printf("[ETH] MAC set: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                      _mac[0], _mac[1], _mac[2], _mac[3], _mac[4], _mac[5]);
+    }
+
+    // Step 2: Initialize with IP configuration
+    // NOTE: DHCP is NOT implemented in W5500 driver - using static IP
+    if (_config.useDHCP) {
+        Serial.println("[ETH] WARNING: DHCP not implemented in W5500 driver!");
+        Serial.println("[ETH] Please configure static IP in web interface.");
+        Serial.println("[ETH] Attempting initialization anyway...");
+
+        // Even without DHCP, we need to initialize the chip
+        // Try with static IP if configured, otherwise fail gracefully
+        if (_config.staticIP != IPAddress(0, 0, 0, 0)) {
+            Serial.printf("[ETH] Falling back to static IP: %s\n", _config.staticIP.toString().c_str());
+            success = _bridge.ethInit(_config.staticIP, _config.gateway,
+                                       _config.subnet, _config.dns);
+        } else {
+            // Just initialize W5500 without IP config
+            success = _bridge.ethInit(_config.dhcpTimeout);
+            if (success) {
+                Serial.println("[ETH] W5500 initialized but no IP configured!");
+                Serial.println("[ETH] Set static IP in config or web interface");
+            }
+        }
+    } else {
+        // Static IP configured - use it
+        if (_config.staticIP == IPAddress(0, 0, 0, 0)) {
+            Serial.println("[ETH] ERROR: Static IP mode but IP is 0.0.0.0!");
+            Serial.println("[ETH] Please configure IP in web interface.");
+            _status = NetworkStatus::ERROR;
+            return false;
+        }
+
         Serial.printf("[ETH] Using static IP: %s\n", _config.staticIP.toString().c_str());
+        Serial.printf("[ETH] Gateway: %s, DNS: %s\n",
+                      _config.gateway.toString().c_str(),
+                      _config.dns.toString().c_str());
         success = _bridge.ethInit(_config.staticIP, _config.gateway,
                                    _config.subnet, _config.dns);
     }
@@ -91,8 +131,11 @@ bool EthernetAdapter::initEthernet() {
         if (_localIP != IPAddress(0, 0, 0, 0)) {
             _status = NetworkStatus::CONNECTED;
             _connectedTime = millis();
-            Serial.printf("[ETH] Connected, IP: %s\n", _localIP.toString().c_str());
+            Serial.printf("[ETH] Connected! IP: %s\n", _localIP.toString().c_str());
             return true;
+        } else {
+            Serial.println("[ETH] W5500 initialized but IP is 0.0.0.0");
+            Serial.println("[ETH] Configure static IP for Ethernet to work");
         }
     }
 
@@ -384,4 +427,38 @@ bool EthernetAdapter::reconnect() {
     end();
     delay(100);
     return begin();
+}
+
+// ================== MAC Address Generation ==================
+
+void EthernetAdapter::generateMAC() {
+    // Generate unique MAC address based on ESP32 WiFi MAC
+    // This ensures each device has a unique Ethernet MAC
+    //
+    // Strategy: Use WiFi MAC as base, modify for Ethernet:
+    // - WiFi MAC:     AA:BB:CC:DD:EE:FF
+    // - Ethernet MAC: AA:BB:CC:DD:EE:FE (last byte XOR 0x01)
+    //
+    // This creates a locally administered unicast MAC address
+    // Bit 1 of first byte = 0 (unicast)
+    // Bit 2 of first byte = 1 (locally administered)
+
+    uint8_t wifiMac[6];
+    WiFi.macAddress(wifiMac);
+
+    // Copy WiFi MAC as base
+    memcpy(_mac, wifiMac, 6);
+
+    // Set locally administered bit (bit 1 of first byte)
+    // This indicates it's not a globally unique OUI
+    _mac[0] |= 0x02;  // Set locally administered bit
+
+    // Ensure unicast (clear multicast bit)
+    _mac[0] &= 0xFE;  // Clear multicast bit
+
+    // Differentiate from WiFi by modifying last byte
+    _mac[5] ^= 0x01;  // XOR last byte to make it different
+
+    Serial.printf("[ETH] Generated MAC from WiFi base: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  _mac[0], _mac[1], _mac[2], _mac[3], _mac[4], _mac[5]);
 }

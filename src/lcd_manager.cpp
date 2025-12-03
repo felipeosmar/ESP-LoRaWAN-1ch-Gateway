@@ -1,5 +1,6 @@
 #include "lcd_manager.h"
 #include "network_manager.h"
+#include "i2c_bus.h"
 #include <WiFi.h>
 #include <LittleFS.h>
 
@@ -38,9 +39,16 @@ bool LCDManager::begin() {
 
     Serial.println("[LCD] Initializing display...");
 
-    // Initialize I2C on configured pins
-    // Note: LiquidCrystal_I2C uses Wire global object
-    Wire.begin(config.sda, config.scl);
+    // Check if I2C bus is initialized (should be done by main)
+    if (!i2cBus.isInitialized()) {
+        Serial.println("[LCD] Error: I2C bus not initialized!");
+        return false;
+    }
+
+    // Check if LCD device is present on bus
+    if (!i2cBus.devicePresent(config.address)) {
+        Serial.printf("[LCD] Warning: Device not found at 0x%02X\n", config.address);
+    }
 
     // Create LCD instance with configured parameters
     lcd = new LiquidCrystal_I2C(config.address, config.cols, config.rows);

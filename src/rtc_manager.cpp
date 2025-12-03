@@ -1,4 +1,5 @@
 #include "rtc_manager.h"
+#include "i2c_bus.h"
 #include <LittleFS.h>
 
 // Global instance
@@ -32,11 +33,16 @@ bool RTCManager::begin() {
     }
 
     Serial.println("[RTC] Initializing DS1307...");
-    Serial.printf("[RTC] I2C Address: 0x%02X, SDA: %d, SCL: %d\n",
-                  config.i2cAddress, config.sdaPin, config.sclPin);
+    Serial.printf("[RTC] I2C Address: 0x%02X\n", config.i2cAddress);
 
-    // I2C should already be initialized by LCD manager or main
-    // Just verify the device is present
+    // Check if I2C bus is initialized
+    if (!i2cBus.isInitialized()) {
+        Serial.println("[RTC] Error: I2C bus not initialized!");
+        status.available = false;
+        return false;
+    }
+
+    // Verify the device is present
     if (!detectDevice()) {
         Serial.println("[RTC] DS1307 not found on I2C bus!");
         status.available = false;

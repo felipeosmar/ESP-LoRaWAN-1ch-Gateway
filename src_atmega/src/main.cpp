@@ -1,41 +1,62 @@
 /**
  * @file main.cpp
- * @brief Firmware principal do ATmega328P - Bridge para perifericos
+ * @brief Firmware principal do ATmega328P - Bridge para W5500 Ethernet
  *
  * Gateway LoRa JVTECH v4.1
  *
  * Este firmware atua como ponte entre o ESP32 (processador principal)
- * e os perifericos conectados ao ATmega328P:
- * - W5500 via SPI RAW (sem biblioteca Ethernet - ESP32 controla)
- * - RTC DS1307Z (I2C)
- * - Buzzer
+ * e o chip Ethernet W5500 conectado ao ATmega328P via SPI.
+ *
+ * Perifericos gerenciados pelo ATmega:
+ * - W5500 Ethernet (SPI)
  * - LED Debug
  *
- * A biblioteca Ethernet (28KB+) nao cabe no ATmega328P (32KB Flash).
- * Portanto, o ATmega atua como bridge SPI - o ESP32 envia comandos SPI
- * raw que sao repassados ao W5500.
+ * Nota: RTC DS1307 esta conectado diretamente ao ESP32 (I2C)
  *
- * Comunicacao com ESP32 via UART (115200 baud)
- * atraves do shift level SN74HCT08
+ * Comunicacao Serial:
+ * - Hardware UART (PD0/PD1): Debug via USB-Serial adapter
+ * - SoftwareSerial (PD2/PD3): Comunicacao com ESP32 via shift level
+ *
+ * Wiring:
+ * - PD2 (Arduino pin 2) = RX from ESP32 GPIO17 (TX2)
+ * - PD3 (Arduino pin 3) = TX to ESP32 GPIO16 (RX2)
  */
 
 #include <Arduino.h>
+#include <SoftwareSerial.h>
 #include <SPI.h>
-#include <Wire.h>
 
 #include "protocol.h"
 #include "w5500_driver.h"
+
+// ============================================================
+// SoftwareSerial for ESP32 communication
+// ============================================================
+// PD2 (pin 2) = RX from ESP32
+// PD3 (pin 3) = TX to ESP32
+#define ESP_RX_PIN 2  // ATmega RX from ESP32 TX (GPIO17)
+#define ESP_TX_PIN 3  // ATmega TX to ESP32 RX (GPIO16)
+
+SoftwareSerial espSerial(ESP_RX_PIN, ESP_TX_PIN);
 
 // ============================================================
 // Configuracoes
 // ============================================================
 
 #define FIRMWARE_VERSION_MAJOR  1
-#define FIRMWARE_VERSION_MINOR  0
-#define FIRMWARE_VERSION_PATCH  1
+#define FIRMWARE_VERSION_MINOR  1
+#define FIRMWARE_VERSION_PATCH  0
 
+// Debug serial baud rate (Hardware UART - PD0/PD1)
 #ifndef SERIAL_BAUD
 #define SERIAL_BAUD 115200
+#endif
+
+// ESP32 communication baud rate (SoftwareSerial - PD2/PD3)
+// IMPORTANT: SoftwareSerial is unreliable at high baud rates!
+// 9600 baud is recommended for stability
+#ifndef ESP_SERIAL_BAUD
+#define ESP_SERIAL_BAUD 9600
 #endif
 
 #ifndef ETH_CS_PIN
@@ -49,10 +70,6 @@
 // Keep-alive LED timing
 #define LED_KEEPALIVE_INTERVAL 3000  // Blink every 3 seconds
 #define LED_KEEPALIVE_ON_TIME  50    // LED on for 50ms
-
-#ifndef RTC_ADDRESS
-#define RTC_ADDRESS 0x68
-#endif
 
 // ============================================================
 // Variaveis globais
@@ -68,7 +85,6 @@ static bool rxInProgress = false;
 static uint8_t txBuffer[PROTO_MAX_DATA_SIZE + PROTO_HEADER_SIZE + PROTO_FOOTER_SIZE];
 
 // Estado do sistema
-static bool rtcInitialized = false;
 static uint32_t uptimeSeconds = 0;
 static uint32_t lastSecondMillis = 0;
 
@@ -96,11 +112,6 @@ void handleSPICommand(uint8_t cmd, const uint8_t* data, uint16_t length);
 void handleEthernetCommand(uint8_t cmd, const uint8_t* data, uint16_t length);
 void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length);
 void handleTCPCommand(uint8_t cmd, const uint8_t* data, uint16_t length);
-void handleRTCCommand(uint8_t cmd, const uint8_t* data, uint16_t length);
-void handleI2CCommand(uint8_t cmd, const uint8_t* data, uint16_t length);
-void initRTC();
-bool readRTC(DateTime* dt);
-bool writeRTC(const DateTime* dt);
 uint16_t getFreeRAM();
 
 // DNS functions
@@ -120,39 +131,32 @@ void setup() {
     digitalWrite(LED_DEBUG_PIN, LOW);
     digitalWrite(ETH_CS_PIN, HIGH);  // W5500 CS desativado
 
-    // Inicializar Serial para comunicacao com ESP32
+    // Inicializar Hardware Serial para debug (PD0/PD1 -> USB)
     Serial.begin(SERIAL_BAUD);
-    delay(100);  // Aguardar Serial estabilizar
+    delay(100);
 
-    DBG_INFO("ATmega328P Bridge v%d.%d.%d starting...",
+    // Inicializar SoftwareSerial para comunicacao com ESP32 (PD2/PD3)
+    // Using lower baud rate for SoftwareSerial stability
+    espSerial.begin(ESP_SERIAL_BAUD);
+    delay(100);
+
+    DBG_INFO(PSTR("ATmega v%d.%d.%d"),
              FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH);
-
-    // Inicializar I2C
-    Wire.begin();
-    Wire.setClock(100000);  // 100kHz
-    DBG_INFO("I2C initialized at 100kHz");
-
-    // Verificar RTC
-    initRTC();
-    if (rtcInitialized) {
-        DBG_INFO("RTC DS1307 found at 0x%02X", RTC_ADDRESS);
-    } else {
-        DBG_WARN("RTC DS1307 not found");
-    }
+    DBG_INFO(PSTR("UART:%lu ESP:%lu"), (unsigned long)SERIAL_BAUD, (unsigned long)ESP_SERIAL_BAUD);
 
     // Inicializar SPI
     SPI.begin();
     SPI.setClockDivider(SPI_CLOCK_DIV4);  // 4MHz para W5500
     SPI.setDataMode(SPI_MODE0);
     SPI.setBitOrder(MSBFIRST);
-    DBG_INFO("SPI initialized at 4MHz");
+    DBG_INFO(PSTR("SPI 4MHz OK"));
 
     // Inicializar W5500 (verificar se presente)
     if (w5500.begin()) {
         ethInitialized = true;
-        DBG_INFO("W5500 initialized, link=%s", w5500.getLinkStatus() ? "UP" : "DOWN");
+        DBG_INFO(PSTR("W5500 link=%s"), w5500.getLinkStatus() ? "UP" : "DN");
     } else {
-        DBG_ERROR("W5500 not found or init failed!");
+        DBG_ERROR(PSTR("W5500 FAIL"));
     }
 
     // LED de indicacao de inicializacao
@@ -163,7 +167,7 @@ void setup() {
         delay(100);
     }
 
-    DBG_INFO("Setup complete. Free RAM: %u bytes", getFreeRAM());
+    DBG_INFO(PSTR("RAM:%u"), getFreeRAM());
     lastSecondMillis = millis();
 }
 
@@ -195,9 +199,9 @@ void loop() {
         }
     }
 
-    // Processar dados seriais recebidos
-    while (Serial.available()) {
-        uint8_t byte = Serial.read();
+    // Processar dados seriais recebidos do ESP32 (via SoftwareSerial)
+    while (espSerial.available()) {
+        uint8_t byte = espSerial.read();
 
         // Detectar inicio de pacote
         if (!rxInProgress && byte == PROTO_START_BYTE) {
@@ -261,7 +265,7 @@ void processPacket(const uint8_t* data, uint16_t length) {
     uint16_t dataLength = (data[2] << 8) | data[3];
     const uint8_t* payload = &data[PROTO_HEADER_SIZE];
 
-    DBG_VERBOSE("RX cmd=0x%02X len=%u", cmd, dataLength);
+    DBG_VERBOSE(PSTR("RX %02X len=%u"), cmd, dataLength);
 
     // LED para indicar atividade
     digitalWrite(LED_DEBUG_PIN, HIGH);
@@ -281,12 +285,8 @@ void processPacket(const uint8_t* data, uint16_t length) {
     } else if (cmd >= 0x30 && cmd <= 0x3F) {
         // Comandos TCP
         handleTCPCommand(cmd, payload, dataLength);
-    } else if (cmd >= 0x40 && cmd <= 0x4F) {
-        handleRTCCommand(cmd, payload, dataLength);
-    } else if (cmd >= 0x50 && cmd <= 0x5F) {
-        handleI2CCommand(cmd, payload, dataLength);
     } else {
-        DBG_WARN("Unknown cmd 0x%02X", cmd);
+        DBG_WARN(PSTR("Bad cmd %02X"), cmd);
         sendResponse(cmd, RSP_INVALID_CMD, nullptr, 0);
     }
 
@@ -310,8 +310,8 @@ void sendResponse(uint8_t cmd, uint8_t status, const uint8_t* data, uint16_t len
     txBuffer[PROTO_HEADER_SIZE + totalDataLen] = calculateCRC8(&txBuffer[PROTO_HEADER_SIZE], totalDataLen);
     txBuffer[PROTO_HEADER_SIZE + totalDataLen + 1] = PROTO_END_BYTE;
 
-    // Enviar
-    Serial.write(txBuffer, PROTO_HEADER_SIZE + totalDataLen + PROTO_FOOTER_SIZE);
+    // Enviar para ESP32 via SoftwareSerial
+    espSerial.write(txBuffer, PROTO_HEADER_SIZE + totalDataLen + PROTO_FOOTER_SIZE);
 }
 
 // ============================================================
@@ -345,11 +345,12 @@ void handleSystemCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
         }
 
         case CMD_GET_STATUS: {
-            // Build response buffer manually to avoid any issues
+            // Build response buffer
+            // Format: [ethInit][linkUp][reserved][uptimeH][uptimeM][uptimeS][freeRamH][freeRamL]
             uint8_t statusData[8];
             statusData[0] = ethInitialized ? 1 : 0;
             statusData[1] = (ethInitialized && w5500.getLinkStatus()) ? 1 : 0;
-            statusData[2] = rtcInitialized ? 1 : 0;
+            statusData[2] = 0;  // Reserved (was rtcInitialized)
             statusData[3] = (uptimeSeconds / 3600) & 0xFF;
             statusData[4] = ((uptimeSeconds % 3600) / 60) & 0xFF;
             statusData[5] = (uptimeSeconds % 60) & 0xFF;
@@ -383,14 +384,14 @@ void handleSystemCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
 void handleEthernetCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
     switch (cmd) {
         case CMD_ETH_INIT: {
-            DBG_INFO("ETH_INIT len=%u", length);
+            DBG_INFO(PSTR("ETH_INIT %u"), length);
             // Inicializar com IP estatico se dados fornecidos
             if (!ethInitialized) {
                 if (w5500.begin()) {
                     ethInitialized = true;
-                    DBG_INFO("W5500 initialized OK");
+                    DBG_INFO(PSTR("W5500 OK"));
                 } else {
-                    DBG_ERROR("W5500 init failed");
+                    DBG_ERROR(PSTR("W5500 FAIL"));
                     sendResponse(cmd, RSP_ERROR, nullptr, 0);
                     break;
                 }
@@ -404,9 +405,8 @@ void handleEthernetCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 w5500.setSubnet(config->subnet);
                 // Store DNS server for DNS resolution
                 memcpy(dnsServerIP, config->dns, 4);
-                DBG_INFO("IP=%d.%d.%d.%d GW=%d.%d.%d.%d",
-                         config->ip[0], config->ip[1], config->ip[2], config->ip[3],
-                         config->gateway[0], config->gateway[1], config->gateway[2], config->gateway[3]);
+                DBG_INFO(PSTR("IP %d.%d.%d.%d"),
+                         config->ip[0], config->ip[1], config->ip[2], config->ip[3]);
             }
 
             sendResponse(cmd, RSP_OK, nullptr, 0);
@@ -500,19 +500,19 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
     switch (cmd) {
         case CMD_UDP_BEGIN: {
             if (!ethInitialized) {
-                DBG_WARN("UDP_BEGIN: ETH not init");
+                DBG_WARN(PSTR("UDP:no ETH"));
                 sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
                 break;
             }
             if (length >= 2) {
                 uint16_t port = ((uint16_t)data[0] << 8) | data[1];
-                DBG_INFO("UDP_BEGIN port=%u", port);
+                DBG_INFO(PSTR("UDP port %u"), port);
                 if (w5500.socketOpenUDP(udpSocket, port)) {
                     udpSocketOpen = true;
-                    DBG_INFO("UDP socket %u opened", udpSocket);
+                    DBG_INFO(PSTR("UDP OK"));
                     sendResponse(cmd, RSP_OK, nullptr, 0);
                 } else {
-                    DBG_ERROR("UDP socket open failed");
+                    DBG_ERROR(PSTR("UDP FAIL"));
                     sendResponse(cmd, RSP_ERROR, nullptr, 0);
                 }
             } else {
@@ -525,20 +525,13 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
             if (udpSocketOpen) {
                 w5500.socketClose(udpSocket);
                 udpSocketOpen = false;
-                DBG_INFO("UDP socket closed");
             }
             sendResponse(cmd, RSP_OK, nullptr, 0);
             break;
         }
 
         case CMD_UDP_SEND: {
-            if (!ethInitialized) {
-                DBG_WARN("UDP_SEND: ETH not init");
-                sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
-                break;
-            }
-            if (!udpSocketOpen) {
-                DBG_WARN("UDP_SEND: socket not open");
+            if (!ethInitialized || !udpSocketOpen) {
                 sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
                 break;
             }
@@ -547,18 +540,13 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 const uint8_t* payload = data + sizeof(NetAddress);
                 uint16_t payloadLen = length - sizeof(NetAddress);
 
-                DBG_VERBOSE("UDP_SEND to %d.%d.%d.%d:%u len=%u",
-                           addr->ip[0], addr->ip[1], addr->ip[2], addr->ip[3],
-                           addr->port, payloadLen);
-
                 uint16_t sent = w5500.udpSend(udpSocket, addr->ip, addr->port,
                                               payload, payloadLen);
                 if (sent > 0) {
-                    DBG_VERBOSE("UDP sent %u bytes", sent);
                     uint8_t response[2] = {(uint8_t)(sent >> 8), (uint8_t)(sent & 0xFF)};
                     sendResponse(cmd, RSP_OK, response, 2);
                 } else {
-                    DBG_ERROR("UDP send failed");
+                    DBG_ERROR(PSTR("UDP TX err"));
                     sendResponse(cmd, RSP_ERROR, nullptr, 0);
                 }
             } else {
@@ -583,21 +571,18 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 break;
             }
 
-            DBG_VERBOSE("UDP_RECV available=%u", available);
+            DBG_VERBOSE(PSTR("UDP RX %u"), available);
 
-            // Buffer para resposta: [NetAddress][dados]
-            uint8_t response[PROTO_MAX_DATA_SIZE];
-            NetAddress* srcAddr = (NetAddress*)response;
-            uint8_t* recvData = response + sizeof(NetAddress);
+            // Reuse rxBuffer for response (safe - we're done receiving)
+            // Format: [NetAddress][data]
+            NetAddress* srcAddr = (NetAddress*)rxBuffer;
+            uint8_t* recvData = rxBuffer + sizeof(NetAddress);
             uint16_t maxData = PROTO_MAX_DATA_SIZE - sizeof(NetAddress);
 
             uint16_t received = w5500.udpReceive(udpSocket, srcAddr->ip, &srcAddr->port,
                                                  recvData, maxData);
             if (received > 0) {
-                DBG_VERBOSE("UDP recv %u bytes from %d.%d.%d.%d:%u",
-                           received, srcAddr->ip[0], srcAddr->ip[1],
-                           srcAddr->ip[2], srcAddr->ip[3], srcAddr->port);
-                sendResponse(cmd, RSP_OK, response, sizeof(NetAddress) + received);
+                sendResponse(cmd, RSP_OK, rxBuffer, sizeof(NetAddress) + received);
             } else {
                 sendResponse(cmd, RSP_NO_DATA, nullptr, 0);
             }
@@ -619,12 +604,10 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
         case CMD_DNS_RESOLVE: {
             // DNS resolution command
             if (!ethInitialized) {
-                DBG_WARN("DNS: ETH not init");
                 sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
                 break;
             }
             if (!w5500.getLinkStatus()) {
-                DBG_WARN("DNS: No link");
                 sendResponse(cmd, RSP_NO_LINK, nullptr, 0);
                 break;
             }
@@ -646,15 +629,13 @@ void handleUDPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 break;
             }
 
-            DBG_INFO("DNS resolve: %s", hostname);
-
             // Perform DNS resolution
             uint8_t resultIP[4];
             if (dnsResolve(hostname, resultIP)) {
-                DBG_INFO("DNS OK: %d.%d.%d.%d", resultIP[0], resultIP[1], resultIP[2], resultIP[3]);
+                DBG_INFO(PSTR("DNS %d.%d.%d.%d"), resultIP[0], resultIP[1], resultIP[2], resultIP[3]);
                 sendResponse(cmd, RSP_OK, resultIP, 4);
             } else {
-                DBG_ERROR("DNS failed for %s", hostname);
+                DBG_ERROR(PSTR("DNS FAIL"));
                 sendResponse(cmd, RSP_ERROR, nullptr, 0);
             }
             break;
@@ -828,10 +809,9 @@ bool dnsResolve(const char* hostname, uint8_t* resultIP) {
         return false;
     }
 
-    // Build DNS query
-    uint8_t queryBuffer[64];  // Max 64 bytes for query (hostname up to 63 chars)
+    // Build DNS query - reuse rxBuffer to save stack
     uint16_t transactionId = (uint16_t)(millis() ^ 0xA5A5);
-    uint16_t queryLen = buildDnsQuery(queryBuffer, hostname, transactionId);
+    uint16_t queryLen = buildDnsQuery(rxBuffer, hostname, transactionId);
 
     if (queryLen == 0) {
         w5500.socketClose(dnsSocket);
@@ -840,7 +820,7 @@ bool dnsResolve(const char* hostname, uint8_t* resultIP) {
 
     // Send DNS query
     uint16_t sent = w5500.udpSend(dnsSocket, dnsServerIP, DNS_SERVER_PORT,
-                                   queryBuffer, queryLen);
+                                   rxBuffer, queryLen);
     if (sent == 0) {
         w5500.socketClose(dnsSocket);
         return false;
@@ -853,15 +833,15 @@ bool dnsResolve(const char* hostname, uint8_t* resultIP) {
     while (millis() - startTime < DNS_TIMEOUT_MS) {
         uint16_t available = w5500.socketAvailable(dnsSocket);
         if (available > 0) {
-            uint8_t responseBuffer[128];  // Max response size we can handle
             uint8_t srcIP[4];
             uint16_t srcPort;
 
+            // Reuse rxBuffer for response
             uint16_t received = w5500.udpReceive(dnsSocket, srcIP, &srcPort,
-                                                  responseBuffer, sizeof(responseBuffer));
+                                                  rxBuffer, PROTO_MAX_DATA_SIZE);
             if (received > 0) {
                 // Parse DNS response
-                if (parseDnsResponse(responseBuffer, received, transactionId, resultIP)) {
+                if (parseDnsResponse(rxBuffer, received, transactionId, resultIP)) {
                     resolved = true;
                     break;
                 }
@@ -996,10 +976,10 @@ void handleTCPCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
                 break;
             }
 
-            uint8_t buffer[PROTO_MAX_DATA_SIZE];
-            uint16_t received = w5500.tcpReceive(tcpSocket, buffer, PROTO_MAX_DATA_SIZE);
+            // Reuse rxBuffer to save stack space
+            uint16_t received = w5500.tcpReceive(tcpSocket, rxBuffer, PROTO_MAX_DATA_SIZE);
             if (received > 0) {
-                sendResponse(cmd, RSP_OK, buffer, received);
+                sendResponse(cmd, RSP_OK, rxBuffer, received);
             } else {
                 sendResponse(cmd, RSP_NO_DATA, nullptr, 0);
             }
@@ -1067,11 +1047,11 @@ void handleSPICommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
             // Entrada: bytes a enviar
             // Saida: bytes recebidos
             if (length > 0 && length <= PROTO_MAX_DATA_SIZE) {
-                uint8_t response[PROTO_MAX_DATA_SIZE];
+                // Reuse rxBuffer for response
                 for (uint16_t i = 0; i < length; i++) {
-                    response[i] = SPI.transfer(data[i]);
+                    rxBuffer[i] = SPI.transfer(data[i]);
                 }
-                sendResponse(cmd, RSP_OK, response, length);
+                sendResponse(cmd, RSP_OK, rxBuffer, length);
             } else if (length == 0) {
                 sendResponse(cmd, RSP_OK, nullptr, 0);
             } else {
@@ -1096,232 +1076,6 @@ void handleSPICommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
         default:
             sendResponse(cmd, RSP_INVALID_CMD, nullptr, 0);
     }
-}
-
-// ============================================================
-// RTC DS1307
-// ============================================================
-
-void handleRTCCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
-    switch (cmd) {
-        case CMD_RTC_GET_DATETIME: {
-            if (!rtcInitialized) {
-                sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
-                break;
-            }
-
-            DateTime dt;
-            if (readRTC(&dt)) {
-                sendResponse(cmd, RSP_OK, (uint8_t*)&dt, sizeof(dt));
-            } else {
-                sendResponse(cmd, RSP_ERROR, nullptr, 0);
-            }
-            break;
-        }
-
-        case CMD_RTC_SET_DATETIME: {
-            if (!rtcInitialized) {
-                sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
-                break;
-            }
-
-            if (length >= sizeof(DateTime)) {
-                const DateTime* dt = (const DateTime*)data;
-                if (writeRTC(dt)) {
-                    sendResponse(cmd, RSP_OK, nullptr, 0);
-                } else {
-                    sendResponse(cmd, RSP_ERROR, nullptr, 0);
-                }
-            } else {
-                sendResponse(cmd, RSP_INVALID_PARAM, nullptr, 0);
-            }
-            break;
-        }
-
-        case CMD_RTC_GET_TIME: {
-            if (!rtcInitialized) {
-                sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
-                break;
-            }
-
-            DateTime dt;
-            if (readRTC(&dt)) {
-                uint8_t time[3] = {dt.hour, dt.minute, dt.second};
-                sendResponse(cmd, RSP_OK, time, 3);
-            } else {
-                sendResponse(cmd, RSP_ERROR, nullptr, 0);
-            }
-            break;
-        }
-
-        case CMD_RTC_GET_DATE: {
-            if (!rtcInitialized) {
-                sendResponse(cmd, RSP_NOT_INIT, nullptr, 0);
-                break;
-            }
-
-            DateTime dt;
-            if (readRTC(&dt)) {
-                uint8_t date[4] = {dt.year, dt.month, dt.day, dt.dayOfWeek};
-                sendResponse(cmd, RSP_OK, date, 4);
-            } else {
-                sendResponse(cmd, RSP_ERROR, nullptr, 0);
-            }
-            break;
-        }
-
-        default:
-            sendResponse(cmd, RSP_INVALID_CMD, nullptr, 0);
-    }
-}
-
-// ============================================================
-// I2C Raw
-// ============================================================
-
-void handleI2CCommand(uint8_t cmd, const uint8_t* data, uint16_t length) {
-    switch (cmd) {
-        case CMD_I2C_SCAN: {
-            uint8_t devices[16];  // Max 16 devices
-            uint8_t count = 0;
-
-            for (uint8_t addr = 1; addr < 127 && count < 16; addr++) {
-                Wire.beginTransmission(addr);
-                if (Wire.endTransmission() == 0) {
-                    devices[count++] = addr;
-                }
-            }
-
-            sendResponse(cmd, RSP_OK, devices, count);
-            break;
-        }
-
-        case CMD_I2C_WRITE: {
-            if (length >= 2) {
-                uint8_t addr = data[0];
-                uint8_t writeLen = data[1];
-
-                if (length >= (uint16_t)(2 + writeLen)) {
-                    Wire.beginTransmission(addr);
-                    Wire.write(&data[2], writeLen);
-                    uint8_t result = Wire.endTransmission();
-
-                    if (result == 0) {
-                        sendResponse(cmd, RSP_OK, nullptr, 0);
-                    } else {
-                        sendResponse(cmd, RSP_ERROR, &result, 1);
-                    }
-                } else {
-                    sendResponse(cmd, RSP_INVALID_PARAM, nullptr, 0);
-                }
-            } else {
-                sendResponse(cmd, RSP_INVALID_PARAM, nullptr, 0);
-            }
-            break;
-        }
-
-        case CMD_I2C_READ: {
-            if (length >= 2) {
-                uint8_t addr = data[0];
-                uint8_t readLen = data[1];
-
-                if (readLen > 0 && readLen <= 32) {
-                    uint8_t buffer[32];
-                    Wire.requestFrom(addr, readLen);
-
-                    uint8_t received = 0;
-                    while (Wire.available() && received < readLen) {
-                        buffer[received++] = Wire.read();
-                    }
-
-                    sendResponse(cmd, RSP_OK, buffer, received);
-                } else {
-                    sendResponse(cmd, RSP_INVALID_PARAM, nullptr, 0);
-                }
-            } else {
-                sendResponse(cmd, RSP_INVALID_PARAM, nullptr, 0);
-            }
-            break;
-        }
-
-        default:
-            sendResponse(cmd, RSP_INVALID_CMD, nullptr, 0);
-    }
-}
-
-// ============================================================
-// Funcoes RTC DS1307
-// ============================================================
-
-void initRTC() {
-    Wire.beginTransmission(RTC_ADDRESS);
-    if (Wire.endTransmission() == 0) {
-        rtcInitialized = true;
-
-        // Verificar se relogio esta parado (bit CH)
-        Wire.beginTransmission(RTC_ADDRESS);
-        Wire.write(0x00);  // Registro segundos
-        Wire.endTransmission();
-
-        Wire.requestFrom((uint8_t)RTC_ADDRESS, (uint8_t)1);
-        if (Wire.available()) {
-            uint8_t seconds = Wire.read();
-            if (seconds & 0x80) {
-                // Relogio parado, iniciar
-                Wire.beginTransmission(RTC_ADDRESS);
-                Wire.write(0x00);
-                Wire.write(0x00);  // Iniciar relogio, segundos = 0
-                Wire.endTransmission();
-            }
-        }
-    } else {
-        rtcInitialized = false;
-    }
-}
-
-uint8_t bcdToDec(uint8_t bcd) {
-    return ((bcd >> 4) * 10) + (bcd & 0x0F);
-}
-
-uint8_t decToBcd(uint8_t dec) {
-    return ((dec / 10) << 4) | (dec % 10);
-}
-
-bool readRTC(DateTime* dt) {
-    Wire.beginTransmission(RTC_ADDRESS);
-    Wire.write(0x00);  // Registro inicial
-    if (Wire.endTransmission() != 0) {
-        return false;
-    }
-
-    Wire.requestFrom((uint8_t)RTC_ADDRESS, (uint8_t)7);
-    if (Wire.available() < 7) {
-        return false;
-    }
-
-    dt->second = bcdToDec(Wire.read() & 0x7F);
-    dt->minute = bcdToDec(Wire.read() & 0x7F);
-    dt->hour = bcdToDec(Wire.read() & 0x3F);
-    dt->dayOfWeek = bcdToDec(Wire.read() & 0x07);
-    dt->day = bcdToDec(Wire.read() & 0x3F);
-    dt->month = bcdToDec(Wire.read() & 0x1F);
-    dt->year = bcdToDec(Wire.read());
-
-    return true;
-}
-
-bool writeRTC(const DateTime* dt) {
-    Wire.beginTransmission(RTC_ADDRESS);
-    Wire.write(0x00);  // Registro inicial
-    Wire.write(decToBcd(dt->second) & 0x7F);  // CH = 0
-    Wire.write(decToBcd(dt->minute));
-    Wire.write(decToBcd(dt->hour));
-    Wire.write(decToBcd(dt->dayOfWeek));
-    Wire.write(decToBcd(dt->day));
-    Wire.write(decToBcd(dt->month));
-    Wire.write(decToBcd(dt->year));
-
-    return Wire.endTransmission() == 0;
 }
 
 // ============================================================

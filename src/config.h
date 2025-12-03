@@ -51,18 +51,29 @@
 #define OLED_RST 16
 #endif
 
+// =============================================================================
+// I2C Bus Configuration (shared by LCD, RTC, and other I2C devices)
+// =============================================================================
+#ifndef I2C_SDA_PIN
+#define I2C_SDA_PIN 21
+#endif
+
+#ifndef I2C_SCL_PIN
+#define I2C_SCL_PIN 22
+#endif
+
+#ifndef I2C_FREQUENCY
+#define I2C_FREQUENCY 100000  // 100kHz standard mode
+#endif
+
 // LCD 16x2 I2C Configuration
 #ifndef LCD_ENABLED
 #define LCD_ENABLED 0
 #endif
 
-#ifndef LCD_SDA
-#define LCD_SDA 21
-#endif
-
-#ifndef LCD_SCL
-#define LCD_SCL 22
-#endif
+// LCD uses shared I2C bus pins (I2C_SDA_PIN, I2C_SCL_PIN)
+#define LCD_SDA I2C_SDA_PIN
+#define LCD_SCL I2C_SCL_PIN
 
 #ifndef LCD_ADDRESS
 #define LCD_ADDRESS 0x27
@@ -171,13 +182,9 @@
 #define RTC_ADDRESS 0x68  // DS1307 default I2C address
 #endif
 
-#ifndef RTC_SDA
-#define RTC_SDA 21        // Same as LCD (shared I2C bus)
-#endif
-
-#ifndef RTC_SCL
-#define RTC_SCL 22        // Same as LCD (shared I2C bus)
-#endif
+// RTC uses shared I2C bus pins (I2C_SDA_PIN, I2C_SCL_PIN)
+#define RTC_SDA I2C_SDA_PIN
+#define RTC_SCL I2C_SCL_PIN
 
 // RTC defaults
 #define RTC_SYNC_WITH_NTP_DEFAULT   true
@@ -187,18 +194,34 @@
 // =============================================================================
 // ATmega Bridge Configuration
 // =============================================================================
+//
+// Communication Architecture:
+// ---------------------------
+// ESP32 Serial0 (GPIO1/GPIO3)  -> USB Debug (monitor serial)
+// ESP32 Serial2 (GPIO16/GPIO17) -> ATmega328P communication
+//
+// ATmega328P:
+// - PD0/PD1 (Hardware UART) -> Debug via USB-Serial adapter
+// - PD2/PD3 (SoftwareSerial) -> ESP32 communication
+//
+// Wiring:
+// - ESP32 GPIO16 (RX2) <-- ATmega PD3 (SoftSerial TX)
+// - ESP32 GPIO17 (TX2) --> ATmega PD2 (SoftSerial RX)
+//
 
-// ATmega Bridge UART pins (ESP32 <-> ATmega328P)
+// ATmega Bridge UART pins (ESP32 Serial2)
 #ifndef ATMEGA_RX_PIN
-#define ATMEGA_RX_PIN 3   // ESP32 RX from ATmega TX
+#define ATMEGA_RX_PIN 16  // ESP32 RX2 (GPIO16) <- ATmega PD3 (TX)
 #endif
 
 #ifndef ATMEGA_TX_PIN
-#define ATMEGA_TX_PIN 1   // ESP32 TX to ATmega RX
+#define ATMEGA_TX_PIN 17  // ESP32 TX2 (GPIO17) -> ATmega PD2 (RX)
 #endif
 
+// IMPORTANT: SoftwareSerial on ATmega328P is unreliable at high baud rates!
+// Using 9600 baud for stable communication with ATmega SoftwareSerial
 #ifndef ATMEGA_BAUD_RATE
-#define ATMEGA_BAUD_RATE 115200
+#define ATMEGA_BAUD_RATE 9600
 #endif
 
 #ifndef ATMEGA_ENABLED

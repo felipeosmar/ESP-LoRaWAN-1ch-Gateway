@@ -152,6 +152,7 @@ private:
     bool initEthernet();
     void updateIPConfig();
     void checkLink();
+    void generateMAC();  // Generate unique MAC from ESP32 WiFi MAC
 };
 
 #endif // ETHERNET_ADAPTER_H

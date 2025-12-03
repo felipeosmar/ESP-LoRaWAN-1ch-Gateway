@@ -21,7 +21,7 @@
     "host": "10.1.82.18",
     "port_up": 1700,
     "port_down": 1700,
-    "gateway_eui": "24DCC3FFFECB9A34",
+    "gateway_eui": "24dcc3fffecb9a34",
     "description": "JVTech ESP32 1ch Gateway LoRa",
     "region": "US915",
     "latitude": -26.26381,
@@ -87,9 +87,9 @@
     "stability_period": 60000,
     "ethernet": {
       "enabled": true,
-      "dhcp": true,
-      "static_ip": "0.0.0.0",
-      "gateway": "0.0.0.0",
+      "dhcp": false,
+      "static_ip": "10.1.82.100",
+      "gateway": "10.1.82.254",
       "subnet": "255.255.255.0",
       "dns": "8.8.8.8",
       "dhcp_timeout": 10000

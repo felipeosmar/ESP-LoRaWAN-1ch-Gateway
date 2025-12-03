@@ -37,6 +37,7 @@
 #include "rtc_manager.h"
 #include "atmega_bridge.h"
 #include "network_manager.h"
+#include "i2c_bus.h"
 
 // WiFi network structure
 struct WiFiNetwork {
@@ -68,6 +69,8 @@ bool ledState = false;
 
 // ATmega Bridge and Network Manager instances
 #if ATMEGA_ENABLED
+// Use Serial2 (UART2) for ATmega bridge on GPIO16/GPIO17
+// Serial0 (GPIO1/3) is reserved for USB debug
 ATmegaBridge atmegaBridge(Serial2, ATMEGA_RX_PIN, ATMEGA_TX_PIN);
 #endif
 
@@ -119,6 +122,11 @@ void setup() {
     if (!loadConfig()) {
         Serial.println("[Main] Using default configuration");
         setDefaultConfig();
+    }
+
+    // Initialize I2C bus (shared by LCD, RTC, and other I2C devices)
+    if (!i2cBus.begin(I2C_SDA_PIN, I2C_SCL_PIN)) {
+        Serial.println("[Main] Warning: I2C bus initialization failed!");
     }
 
     // Initialize OLED display
@@ -187,8 +195,8 @@ void setup() {
         networkManager->getConfig().ethernetEnabled = false;
     }
     #else
-    // ATmega disabled - create dummy bridge for NetworkManager
-    static ATmegaBridge dummyBridge(Serial2);
+    // ATmega disabled - create dummy bridge for NetworkManager (using Serial2)
+    static ATmegaBridge dummyBridge(Serial2, ATMEGA_RX_PIN, ATMEGA_TX_PIN);
     networkManager = new NetworkManager(dummyBridge);
     networkManager->getConfig().ethernetEnabled = false;
     #endif
@@ -199,6 +207,22 @@ void setup() {
     // Initialize NetworkManager (after WiFi is setup)
     if (networkManager) {
         Serial.println("[Main] Initializing Network Manager...");
+
+        // Reload configuration for NetworkManager to ensure it has the latest settings
+        // This is necessary because NetworkManager was created after the initial loadConfig() call
+        File file = LittleFS.open("/config.json", "r");
+        if (file) {
+            DynamicJsonDocument doc(JSON_BUFFER_SIZE);
+            DeserializationError error = deserializeJson(doc, file);
+            file.close();
+            if (!error) {
+                networkManager->loadConfig(doc);
+                Serial.println("[Main] Network Manager config reloaded");
+            } else {
+                Serial.println("[Main] Failed to reload config for Network Manager");
+            }
+        }
+
         if (networkManager->begin()) {
             Serial.printf("[Main] Network Manager ready, active: %s\n",
                          networkManager->getActiveInterface() ?

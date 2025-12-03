@@ -24,7 +24,9 @@
 // Debug Configuration
 // ============================================================
 
-// Uncomment to enable debug output via Serial
+// Debug output uses Hardware UART (PD0/PD1) which is separate from ESP32 communication
+// Set to 0 to disable debug and save RAM (~32 bytes buffer per DBG_PRINTF call)
+// Set to 1 to enable debug output via USB-Serial adapter
 #define DEBUG_ENABLED 1
 
 // Debug levels
@@ -41,14 +43,15 @@
 
 // Debug macros
 #if DEBUG_ENABLED
+    // Smaller buffer (32 bytes) to reduce stack usage
     #define DBG_PRINT(x)      Serial.print(x)
     #define DBG_PRINTLN(x)    Serial.println(x)
-    #define DBG_PRINTF(...)   do { char _dbg_buf[80]; snprintf(_dbg_buf, sizeof(_dbg_buf), __VA_ARGS__); Serial.print(_dbg_buf); } while(0)
+    #define DBG_PRINTF(...)   do { char _dbg_buf[32]; snprintf_P(_dbg_buf, sizeof(_dbg_buf), __VA_ARGS__); Serial.print(_dbg_buf); } while(0)
 
-    #define DBG_ERROR(...)    do { if (DEBUG_LEVEL >= DEBUG_LEVEL_ERROR)   { Serial.print(F("[ERR] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
-    #define DBG_WARN(...)     do { if (DEBUG_LEVEL >= DEBUG_LEVEL_WARN)    { Serial.print(F("[WRN] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
-    #define DBG_INFO(...)     do { if (DEBUG_LEVEL >= DEBUG_LEVEL_INFO)    { Serial.print(F("[INF] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
-    #define DBG_VERBOSE(...)  do { if (DEBUG_LEVEL >= DEBUG_LEVEL_VERBOSE) { Serial.print(F("[VRB] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
+    #define DBG_ERROR(...)    do { if (DEBUG_LEVEL >= DEBUG_LEVEL_ERROR)   { Serial.print(F("[E] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
+    #define DBG_WARN(...)     do { if (DEBUG_LEVEL >= DEBUG_LEVEL_WARN)    { Serial.print(F("[W] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
+    #define DBG_INFO(...)     do { if (DEBUG_LEVEL >= DEBUG_LEVEL_INFO)    { Serial.print(F("[I] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
+    #define DBG_VERBOSE(...)  do { if (DEBUG_LEVEL >= DEBUG_LEVEL_VERBOSE) { Serial.print(F("[V] ")); DBG_PRINTF(__VA_ARGS__); Serial.println(); } } while(0)
 #else
     #define DBG_PRINT(x)
     #define DBG_PRINTLN(x)
@@ -66,12 +69,9 @@
 #define PROTO_END_BYTE      0x55
 
 // Tamanho maximo de dados
-// ATmega328P tem apenas 2KB RAM - usar buffer menor
-#if defined(__AVR_ATmega328P__) || defined(ATMEGA328P_BRIDGE)
-#define PROTO_MAX_DATA_SIZE 128     // Menor para ATmega328P
-#else
-#define PROTO_MAX_DATA_SIZE 512     // ESP32 pode usar mais
-#endif
+// PUSH_DATA do LoRaWAN Semtech protocol precisa de ~300-400 bytes (12 header + JSON)
+// ATmega328P e ESP32 devem usar o mesmo tamanho para comunicacao serial
+#define PROTO_MAX_DATA_SIZE 400
 
 #define PROTO_HEADER_SIZE   4   // START + CMD + LEN_H + LEN_L
 #define PROTO_FOOTER_SIZE   2   // CRC + END
